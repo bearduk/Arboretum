@@ -25,6 +25,7 @@ Primary contact on the content side: **Dave Emley** (arboretum). Project driver 
 | `.gitignore` | Ignores `.venv/`, Excel lock files, `project-notes.txt`, `prompt.txt` |
 | `scripts/xlsx_to_geojson.py` | Build: workbook → `docs/data/*.geojson` |
 | `docs/` | GitHub Pages site: map UI + generated GeoJSON |
+| `README.md` | Maintainer quick start: install, run export, spreadsheet rules, publishing handoff |
 
 **Do not rely on** `~$Keele trees Dec25.xlsx` if it appears — that is Excel’s temporary lock file.
 
@@ -129,6 +130,8 @@ Sample values (e.g. X ≈ `381773`, Y ≈ `345070`) are consistent with **OSGB36
 
 ## Build and run (implemented)
 
+Maintainer-oriented steps (spreadsheet rules, column fragility, who to contact for publishing) are in **`README.md`**.
+
 1. **Python environment** (from repo root):
 
    ```bash
@@ -164,6 +167,12 @@ Sample values (e.g. X ≈ `381773`, Y ≈ `345070`) are consistent with **OSGB36
 | `docs/css/map.css` | Layout / header styling |
 | `docs/data/*.geojson` | Generated layers (commit after rebuild) |
 
+### Spreadsheet contract (summary)
+
+- Day-to-day editing rules (layout, coordinates, sheet names, column renames) → **`README.md`**.  
+- Exact header→property behaviour → **`scripts/xlsx_to_geojson.py`** (`header_to_key` and coordinate keys: `x`, `y`, `easting`, `northing`).  
+- Which properties the map displays → **`docs/js/map.js`** (`propsToPopupHtml` and `?tag=` / `?square=` matching).
+
 ## Progress log
 
 _Update this section as work proceeds._
@@ -172,6 +181,7 @@ _Update this section as work proceeds._
 |------|------|
 | 2026-04-03 | Folder assessed; `project-notes.txt` archived; workbook structure and column fill-rates captured; `.venv` created locally with OpenPyXL for analysis; this `CLAUDE.md` added; `.gitignore` and `requirements.txt` (openpyxl, pyproj) added for a future GitHub-based build. |
 | 2026-04-03 | Implemented `scripts/xlsx_to_geojson.py`, static Leaflet site under `docs/` (ES5 `map.js`, layer toggles, `?tag=` / `?square=` deep links), generated GeoJSON committed to `docs/data/`; `.gitignore` excludes `project-notes.txt` and `prompt.txt`. |
+| 2026-04-03 | Added root `README.md` for maintainers (install, export, spreadsheet rules, column/map fragility, publishing handoff); `CLAUDE.md` cross-links and spreadsheet contract summary. |
 
 ## Open questions
 
