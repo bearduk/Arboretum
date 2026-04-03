@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+~$*.xlsx
+~$*.xls
+
+# Local context only — do not publish
+project-notes.txt
+prompt.txt
