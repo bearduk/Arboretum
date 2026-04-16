@@ -2797,6 +2797,7 @@
       },
       "properties": {
         "source_sheet": "cherries",
+        "tag": 4156,
         "square": "N2",
         "species": "Flowering Cherry",
         "latin_name": "Prunus 'Ukon'",
@@ -3919,6 +3920,7 @@
         "species": "Flowering Cherry",
         "latin_name": "Prunus itosakura 'Pendula Plena Rosea'",
         "planted": 2012,
+        "memorial_commemorative": "Memorial : Eileen and Teresa Flynn",
         "synonymy_old_names": "Prunus x subhirtella Pendula Plena Rosea,",
         "source": "Witch Hazel Nursery, Kent",
         "easting": 381675.0,
