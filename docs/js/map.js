@@ -50,6 +50,9 @@
     if (props.planted) {
       lines.push("Planted: " + escapeHtml(props.planted));
     }
+    if (props.memorial_commemorative) {
+      lines.push("<span class=\"popup-memorial\">" + escapeHtml(props.memorial_commemorative) + "</span>");
+    }
     if (props.w3w) {
       lines.push("what3words: " + escapeHtml(props.w3w));
     }
@@ -125,6 +128,210 @@
   var cherriesLayer = null;
   var otherLayer = null;
   var lostLayer = null;
+
+  var cherriesLabels = null;
+  var otherLabels = null;
+  var lostLabels = null;
+  var labelsVisible = false;
+
+  function buildLabelsLayer(geojson, className) {
+    var labelsGroup = L.layerGroup();
+    var features = geojson.features || [];
+    for (var i = 0; i < features.length; i++) {
+      var f = features[i];
+      if (!f.geometry || f.geometry.type !== "Point") {
+        continue;
+      }
+      var tag = f.properties && f.properties.tag;
+      if (tag === undefined || tag === null || tag === "") {
+        continue;
+      }
+      var coords = f.geometry.coordinates;
+      var latlng = [coords[1], coords[0]];
+      var icon = L.divIcon({
+        className: "tree-label " + className,
+        html: '<span>' + escapeHtml(tag) + '</span>',
+        iconSize: null,
+        iconAnchor: [-8, 4]
+      });
+      var marker = L.marker(latlng, { icon: icon, interactive: false });
+      labelsGroup.addLayer(marker);
+    }
+    return labelsGroup;
+  }
+
+  function updateLabelsVisibility() {
+    if (labelsVisible) {
+      if (cherriesLabels && cherriesLayer && map.hasLayer(cherriesLayer)) {
+        map.addLayer(cherriesLabels);
+      }
+      if (otherLabels && otherLayer && map.hasLayer(otherLayer)) {
+        map.addLayer(otherLabels);
+      }
+      if (lostLabels && lostLayer && map.hasLayer(lostLayer)) {
+        map.addLayer(lostLabels);
+      }
+    } else {
+      if (cherriesLabels) {
+        map.removeLayer(cherriesLabels);
+      }
+      if (otherLabels) {
+        map.removeLayer(otherLabels);
+      }
+      if (lostLabels) {
+        map.removeLayer(lostLabels);
+      }
+    }
+  }
+
+  var allFeatures = [];
+
+  function searchTrees(query) {
+    if (!query || !query.trim()) {
+      return [];
+    }
+    var q = query.trim().toLowerCase();
+    var results = [];
+    for (var i = 0; i < allFeatures.length; i++) {
+      var item = allFeatures[i];
+      var p = item.props;
+      var tagMatch = p.tag !== undefined && String(p.tag).toLowerCase() === q;
+      var textMatch = false;
+      if (!tagMatch) {
+        var searchable = [
+          p.species || "",
+          p.latin_name || "",
+          p.tag !== undefined ? String(p.tag) : "",
+          p.square || "",
+          p.comments || "",
+          p.memorial_commemorative || ""
+        ].join(" ").toLowerCase();
+        textMatch = searchable.indexOf(q) !== -1;
+      }
+      if (tagMatch || textMatch) {
+        results.push({ item: item, tagMatch: tagMatch });
+      }
+      if (results.length >= 50) {
+        break;
+      }
+    }
+    results.sort(function (a, b) {
+      if (a.tagMatch && !b.tagMatch) return -1;
+      if (!a.tagMatch && b.tagMatch) return 1;
+      return 0;
+    });
+    return results.map(function (r) { return r.item; });
+  }
+
+  function showSearchResults(results) {
+    var container = document.getElementById("search-results");
+    if (!container) return;
+    container.innerHTML = "";
+    if (results.length === 0) {
+      container.innerHTML = '<div class="search-no-results">No matches found</div>';
+      container.style.display = "block";
+      return;
+    }
+    for (var i = 0; i < results.length; i++) {
+      var item = results[i];
+      var p = item.props;
+      var div = document.createElement("div");
+      div.className = "search-result-item";
+      var label = (p.tag ? "[" + p.tag + "] " : "") + (p.species || p.latin_name || "Unknown");
+      if (p.square) {
+        label += " (" + p.square + ")";
+      }
+      div.textContent = label;
+      div.setAttribute("data-index", String(i));
+      container.appendChild(div);
+    }
+    container.style.display = "block";
+    container.onclick = function (e) {
+      var target = e.target;
+      if (target.className.indexOf("search-result-item") === -1) return;
+      var idx = parseInt(target.getAttribute("data-index"), 10);
+      if (isNaN(idx) || !results[idx]) return;
+      var item = results[idx];
+      zoomToFeature(item);
+      container.style.display = "none";
+      document.getElementById("search-input").value = "";
+    };
+  }
+
+  function zoomToFeature(item) {
+    var layerGroup = null;
+    var layerRef = null;
+    if (item.source === "cherries") {
+      layerGroup = cherriesLayer;
+      layerRef = cherriesLayerRef;
+      ensureLayerVisible("layer-cherries", cherriesLayer);
+    } else if (item.source === "other") {
+      layerGroup = otherLayer;
+      layerRef = otherLayerRef;
+      ensureLayerVisible("layer-other", otherLayer);
+    } else if (item.source === "lost") {
+      layerGroup = lostLayer;
+      layerRef = lostLayerRef;
+      ensureLayerVisible("layer-lost", lostLayer);
+    }
+    if (!layerGroup || !layerRef) return;
+    var list = layerRef.list;
+    for (var i = 0; i < list.length; i++) {
+      var lyr = list[i];
+      var f = lyr.feature;
+      if (f && f.properties && f.properties.tag === item.props.tag) {
+        var ll = lyr.getLatLng ? lyr.getLatLng() : null;
+        if (ll) {
+          map.setView(ll, Math.max(map.getZoom(), 17));
+        }
+        lyr.openPopup();
+        return;
+      }
+    }
+  }
+
+  function ensureLayerVisible(checkboxId, layer) {
+    if (!layer) return;
+    var cb = document.getElementById(checkboxId);
+    if (cb && !cb.checked) {
+      cb.checked = true;
+      map.addLayer(layer);
+    } else if (!map.hasLayer(layer)) {
+      map.addLayer(layer);
+    }
+    updateLabelsVisibility();
+  }
+
+  function initSearch() {
+    var input = document.getElementById("search-input");
+    var results = document.getElementById("search-results");
+    if (!input) return;
+    var debounce = null;
+    input.oninput = function () {
+      clearTimeout(debounce);
+      debounce = setTimeout(function () {
+        var q = input.value;
+        if (!q.trim()) {
+          results.style.display = "none";
+          results.innerHTML = "";
+          return;
+        }
+        var found = searchTrees(q);
+        showSearchResults(found);
+      }, 150);
+    };
+    input.onkeydown = function (e) {
+      if (e.keyCode === 27) {
+        results.style.display = "none";
+        input.value = "";
+      }
+    };
+    document.addEventListener("click", function (e) {
+      if (!results.contains(e.target) && e.target !== input) {
+        results.style.display = "none";
+      }
+    });
+  }
 
   var params = getQueryParams();
   var pendingTag = params.tag ? String(params.tag).trim() : "";
@@ -237,6 +444,38 @@
     applyDeepLink();
   }
 
+  function wireLayerCheckbox(id, layer, labels) {
+    var cb = document.getElementById(id);
+    if (!cb || !layer) return;
+    cb.onchange = function () {
+      if (cb.checked) {
+        map.addLayer(layer);
+      } else {
+        map.removeLayer(layer);
+      }
+      updateLabelsVisibility();
+    };
+  }
+
+  function wireLabelsToggle() {
+    var cb = document.getElementById("toggle-labels");
+    if (!cb) return;
+    cb.onchange = function () {
+      labelsVisible = cb.checked;
+      updateLabelsVisibility();
+    };
+  }
+
+  function registerFeatures(data, source) {
+    var features = data.features || [];
+    for (var i = 0; i < features.length; i++) {
+      var f = features[i];
+      if (f.properties) {
+        allFeatures.push({ props: f.properties, source: source });
+      }
+    }
+  }
+
   loadGeoJSON("data/cherries.geojson", function (err, data) {
     if (err) {
       setCount("count-cherries", "0");
@@ -248,9 +487,11 @@
       { radius: 6, fillColor: "#c41e3a", color: "#7a1020", weight: 1, opacity: 0.9, fillOpacity: 0.85 },
       cherriesLayerRef
     );
+    cherriesLabels = buildLabelsLayer(data, "label-cherry");
+    registerFeatures(data, "cherries");
     setCount("count-cherries", data.features ? data.features.length : 0);
     map.addLayer(cherriesLayer);
-    wireCheckbox("layer-cherries", cherriesLayer);
+    wireLayerCheckbox("layer-cherries", cherriesLayer, cherriesLabels);
     checkDone();
   });
 
@@ -265,8 +506,10 @@
       { radius: 4, fillColor: "#2d6a4f", color: "#1b4332", weight: 1, opacity: 0.75, fillOpacity: 0.65 },
       otherLayerRef
     );
+    otherLabels = buildLabelsLayer(data, "label-other");
+    registerFeatures(data, "other");
     setCount("count-other", data.features ? data.features.length : 0);
-    wireCheckbox("layer-other", otherLayer);
+    wireLayerCheckbox("layer-other", otherLayer, otherLabels);
     checkDone();
   });
 
@@ -281,8 +524,13 @@
       { radius: 5, fillColor: "#888", color: "#444", weight: 1, opacity: 0.8, fillOpacity: 0.5 },
       lostLayerRef
     );
+    lostLabels = buildLabelsLayer(data, "label-lost");
+    registerFeatures(data, "lost");
     setCount("count-lost", data.features ? data.features.length : 0);
-    wireCheckbox("layer-lost", lostLayer);
+    wireLayerCheckbox("layer-lost", lostLayer, lostLabels);
     checkDone();
   });
+
+  wireLabelsToggle();
+  initSearch();
 })();

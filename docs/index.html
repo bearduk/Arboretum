@@ -13,19 +13,35 @@
     <p class="sub">Flowering cherries and other campus trees (data from the arboretum spreadsheet).</p>
   </header>
   <aside class="layers-panel" id="layers-panel">
-    <h2>Layers</h2>
-    <label class="layer-row">
-      <input type="checkbox" id="layer-cherries" checked />
-      Cherries (<span id="count-cherries">—</span>)
-    </label>
-    <label class="layer-row">
-      <input type="checkbox" id="layer-other" />
-      Other trees (<span id="count-other">—</span>)
-    </label>
-    <label class="layer-row">
-      <input type="checkbox" id="layer-lost" />
-      Lost / removed trees (<span id="count-lost">—</span>)
-    </label>
+    <div class="panel-section">
+      <h2>Search</h2>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Tag, species, or keyword…" autocomplete="off" />
+        <div id="search-results" class="search-results"></div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <h2>Layers</h2>
+      <label class="layer-row">
+        <input type="checkbox" id="layer-cherries" checked />
+        Cherries (<span id="count-cherries">—</span>)
+      </label>
+      <label class="layer-row">
+        <input type="checkbox" id="layer-other" />
+        Other trees (<span id="count-other">—</span>)
+      </label>
+      <label class="layer-row">
+        <input type="checkbox" id="layer-lost" />
+        Lost / removed trees (<span id="count-lost">—</span>)
+      </label>
+    </div>
+    <div class="panel-section">
+      <h2>Display</h2>
+      <label class="layer-row">
+        <input type="checkbox" id="toggle-labels" />
+        Show tag numbers
+      </label>
+    </div>
     <p class="hint">Deep link: add <code>?tag=4001</code> or <code>?square=L7</code> to the URL.</p>
   </aside>
   <div id="map" role="application" aria-label="Campus tree map"></div>
