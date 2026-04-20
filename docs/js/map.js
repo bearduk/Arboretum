@@ -84,6 +84,9 @@
       if (!feature.properties) {
         return;
       }
+      layer.on("click", function () {
+        setSelectedTreeMarker(layer);
+      });
       layer.bindPopup(propsToPopupHtml(feature.properties));
       if (popupLayer) {
         popupLayer.push(layer);
@@ -145,6 +148,8 @@
   var locationWatchId = null;
   var userLocationLayer = null;
   var hasCenteredOnUser = false;
+  var selectedTreeMarker = null;
+  var selectedTreeOriginalStyle = null;
 
   function buildLabelsLayer(geojson, className) {
     var labelsGroup = L.layerGroup();
@@ -191,6 +196,58 @@
   }
 
   var allFeatures = [];
+
+  function getMarkerStyleSnapshot(layer) {
+    if (!layer || !layer.options) {
+      return null;
+    }
+    return {
+      radius: layer.options.radius,
+      fillColor: layer.options.fillColor,
+      color: layer.options.color,
+      weight: layer.options.weight,
+      opacity: layer.options.opacity,
+      fillOpacity: layer.options.fillOpacity
+    };
+  }
+
+  function restoreSelectedTreeMarker() {
+    if (!selectedTreeMarker || !selectedTreeOriginalStyle || !selectedTreeMarker.setStyle) {
+      return;
+    }
+    selectedTreeMarker.setStyle({
+      fillColor: selectedTreeOriginalStyle.fillColor,
+      color: selectedTreeOriginalStyle.color,
+      weight: selectedTreeOriginalStyle.weight,
+      opacity: selectedTreeOriginalStyle.opacity,
+      fillOpacity: selectedTreeOriginalStyle.fillOpacity
+    });
+    if (selectedTreeOriginalStyle.radius !== undefined && selectedTreeMarker.setRadius) {
+      selectedTreeMarker.setRadius(selectedTreeOriginalStyle.radius);
+    }
+  }
+
+  function setSelectedTreeMarker(layer) {
+    if (!layer || !layer.setStyle) {
+      return;
+    }
+    if (selectedTreeMarker === layer) {
+      return;
+    }
+    restoreSelectedTreeMarker();
+    selectedTreeMarker = layer;
+    selectedTreeOriginalStyle = getMarkerStyleSnapshot(layer);
+    layer.setStyle({
+      fillColor: "#f59e0b",
+      color: "#7c2d12",
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 1
+    });
+    if (layer.setRadius) {
+      layer.setRadius(8);
+    }
+  }
 
   function clearSearchHighlights() {
     if (searchHighlightLayer) {
@@ -547,6 +604,7 @@
       var lyr = list[i];
       var f = lyr.feature;
       if (f && f.properties && f.properties.tag === item.props.tag) {
+        setSelectedTreeMarker(lyr);
         var ll = lyr.getLatLng ? lyr.getLatLng() : null;
         if (ll) {
           map.setView(ll, Math.max(map.getZoom(), 17));
@@ -659,6 +717,7 @@
       var lyr = list[i];
       var f = lyr.feature;
       if (f && f.properties && matchFn(f.properties)) {
+        setSelectedTreeMarker(lyr);
         var ll = lyr.getLatLng ? lyr.getLatLng() : null;
         if (ll) {
           map.setView(ll, Math.max(map.getZoom(), 17));
