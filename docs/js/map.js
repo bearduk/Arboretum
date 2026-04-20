@@ -54,7 +54,7 @@
       lines.push("<span class=\"popup-memorial\">" + escapeHtml(props.memorial_commemorative) + "</span>");
     }
     if (props.w3w) {
-      lines.push("what3words: " + escapeHtml(props.w3w));
+      lines.push("w3w: " + escapeHtml(props.w3w));
     }
     if (props.comments) {
       lines.push("<span class=\"popup-comments\">" + escapeHtml(props.comments) + "</span>");
@@ -123,15 +123,12 @@
 
   var cherriesLayerRef = { list: [] };
   var otherLayerRef = { list: [] };
-  var lostLayerRef = { list: [] };
 
   var cherriesLayer = null;
   var otherLayer = null;
-  var lostLayer = null;
 
   var cherriesLabels = null;
   var otherLabels = null;
-  var lostLabels = null;
   var labelsVisible = false;
 
   function buildLabelsLayer(geojson, className) {
@@ -168,18 +165,12 @@
       if (otherLabels && otherLayer && map.hasLayer(otherLayer)) {
         map.addLayer(otherLabels);
       }
-      if (lostLabels && lostLayer && map.hasLayer(lostLayer)) {
-        map.addLayer(lostLabels);
-      }
     } else {
       if (cherriesLabels) {
         map.removeLayer(cherriesLabels);
       }
       if (otherLabels) {
         map.removeLayer(otherLabels);
-      }
-      if (lostLabels) {
-        map.removeLayer(lostLabels);
       }
     }
   }
@@ -237,7 +228,15 @@
       var p = item.props;
       var div = document.createElement("div");
       div.className = "search-result-item";
-      var label = (p.tag ? "[" + p.tag + "] " : "") + (p.species || p.latin_name || "Unknown");
+      var name = "Unknown";
+      if (p.species && p.latin_name) {
+        name = p.species + ", " + p.latin_name;
+      } else if (p.species) {
+        name = p.species;
+      } else if (p.latin_name) {
+        name = p.latin_name;
+      }
+      var label = (p.tag ? "[" + p.tag + "] " : "") + name;
       if (p.square) {
         label += " (" + p.square + ")";
       }
@@ -269,10 +268,6 @@
       layerGroup = otherLayer;
       layerRef = otherLayerRef;
       ensureLayerVisible("layer-other", otherLayer);
-    } else if (item.source === "lost") {
-      layerGroup = lostLayer;
-      layerRef = lostLayerRef;
-      ensureLayerVisible("layer-lost", lostLayer);
     }
     if (!layerGroup || !layerRef) return;
     var list = layerRef.list;
@@ -411,16 +406,6 @@
           return String(p.tag) === pendingTag;
         });
       }
-      if (!found && lostLayer) {
-        var cbLost = document.getElementById("layer-lost");
-        if (cbLost) {
-          cbLost.checked = true;
-        }
-        map.addLayer(lostLayer);
-        findAndOpenPopup(lostLayer, lostLayerRef, function (p) {
-          return String(p.tag) === pendingTag;
-        });
-      }
       return;
     }
     if (pendingSquare) {
@@ -434,7 +419,7 @@
     }
   }
 
-  var pending = 3;
+  var pending = 2;
   function checkDone() {
     pending -= 1;
     if (pending > 0) {
@@ -510,24 +495,6 @@
     registerFeatures(data, "other");
     setCount("count-other", data.features ? data.features.length : 0);
     wireLayerCheckbox("layer-other", otherLayer, otherLabels);
-    checkDone();
-  });
-
-  loadGeoJSON("data/lost_trees.geojson", function (err, data) {
-    if (err) {
-      setCount("count-lost", "0");
-      checkDone();
-      return;
-    }
-    lostLayer = buildLayer(
-      data,
-      { radius: 5, fillColor: "#888", color: "#444", weight: 1, opacity: 0.8, fillOpacity: 0.5 },
-      lostLayerRef
-    );
-    lostLabels = buildLabelsLayer(data, "label-lost");
-    registerFeatures(data, "lost");
-    setCount("count-lost", data.features ? data.features.length : 0);
-    wireLayerCheckbox("layer-lost", lostLayer, lostLabels);
     checkDone();
   });
 

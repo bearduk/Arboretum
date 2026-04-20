@@ -195,11 +195,6 @@ def main() -> int:
         hdr = _find_header_row(rows, "tag")
         export_sheet(rows, hdr, "other_trees", args.out / "other_trees.geojson")
 
-    if "lost trees" in wb.sheetnames:
-        ws = wb["lost trees"]
-        rows = list(ws.iter_rows(values_only=True))
-        export_sheet(rows, 0, "lost_trees", args.out / "lost_trees.geojson")
-
     wb.close()
     return 0
 

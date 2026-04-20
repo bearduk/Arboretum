@@ -36,7 +36,6 @@ This overwrites:
 
 - `docs/data/cherries.geojson`
 - `docs/data/other_trees.geojson`
-- `docs/data/lost_trees.geojson`
 
 **Stderr** reports how many rows were skipped (no **X/Y** coordinates) and warns about **duplicate Tag** values inside a sheet. Rows without both coordinates do **not** appear on the map.
 
@@ -69,9 +68,8 @@ Try **`?tag=4001`** or **`?square=L7`** on the URL to test deep links.
 4. **Sheet layout (do not break without developer help)**  
    - **`Cherries`** — Column headers must stay on **row 1**. Do not insert rows above them.  
    - **`other trees`** — The script finds the header row by scanning for the first row whose **first cell** is **`Tag`**. Keep that pattern; notes above the table are fine **only** if column A in those rows is **not** the text `Tag`.  
-   - **`lost trees`** — Headers on **row 1**, like Cherries.
 
-5. **Worksheet names** — Must stay exactly: `Cherries`, `other trees`, `lost trees`. Renaming a tab **breaks the export** until `scripts/xlsx_to_geojson.py` is updated.
+5. **Worksheet names** — Export currently depends on `Cherries` and `other trees`. Renaming either tab **breaks the export** until `scripts/xlsx_to_geojson.py` is updated.
 
 ---
 
