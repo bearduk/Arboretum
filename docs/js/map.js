@@ -65,9 +65,17 @@
     return lines.length ? lines.join("<br/>") : "Tree";
   }
 
+  var touchHitRenderer = L.canvas({ tolerance: 10 });
+
   function makePointToLayer(style) {
     return function (feature, latlng) {
-      return L.circleMarker(latlng, style);
+      var markerStyle = { renderer: touchHitRenderer };
+      for (var k in style) {
+        if (style.hasOwnProperty(k)) {
+          markerStyle[k] = style[k];
+        }
+      }
+      return L.circleMarker(latlng, markerStyle);
     };
   }
 
@@ -130,6 +138,13 @@
   var cherriesLabels = null;
   var otherLabels = null;
   var labelsVisible = false;
+  var searchHighlightLayer = null;
+  var searchHoverLayer = null;
+  var currentSearchResults = [];
+  var currentSearchQuery = "";
+  var locationWatchId = null;
+  var userLocationLayer = null;
+  var hasCenteredOnUser = false;
 
   function buildLabelsLayer(geojson, className) {
     var labelsGroup = L.layerGroup();
@@ -177,6 +192,227 @@
 
   var allFeatures = [];
 
+  function clearSearchHighlights() {
+    if (searchHighlightLayer) {
+      map.removeLayer(searchHighlightLayer);
+      searchHighlightLayer = null;
+    }
+  }
+
+  function clearSearchHover() {
+    if (searchHoverLayer) {
+      map.removeLayer(searchHoverLayer);
+      searchHoverLayer = null;
+    }
+  }
+
+  function setLocationStatus(message, kind) {
+    var el = document.getElementById("location-status");
+    if (!el) return;
+    el.className = "location-status";
+    if (kind) {
+      el.className += " location-status-" + kind;
+    }
+    el.textContent = message;
+  }
+
+  function updateLocationButtons(isTracking) {
+    var startBtn = document.getElementById("locate-start");
+    var stopBtn = document.getElementById("locate-stop");
+    if (startBtn) {
+      startBtn.disabled = isTracking;
+    }
+    if (stopBtn) {
+      stopBtn.disabled = !isTracking;
+    }
+  }
+
+  function updateUserLocation(latlng, accuracyMeters) {
+    if (!latlng) return;
+    if (!userLocationLayer) {
+      userLocationLayer = L.layerGroup();
+      map.addLayer(userLocationLayer);
+    }
+    userLocationLayer.clearLayers();
+
+    var accuracy = typeof accuracyMeters === "number" && accuracyMeters > 0 ? accuracyMeters : 0;
+    if (accuracy > 0) {
+      var accuracyCircle = L.circle(latlng, {
+        radius: accuracy,
+        color: "#2563eb",
+        weight: 1,
+        opacity: 0.55,
+        fillColor: "#60a5fa",
+        fillOpacity: 0.18
+      });
+      userLocationLayer.addLayer(accuracyCircle);
+    }
+
+    var userMarker = L.circleMarker(latlng, {
+      radius: 7,
+      color: "#ffffff",
+      weight: 2,
+      fillColor: "#2563eb",
+      fillOpacity: 1,
+      className: "user-location-marker"
+    });
+    userLocationLayer.addLayer(userMarker);
+
+    if (!hasCenteredOnUser) {
+      hasCenteredOnUser = true;
+      map.setView(latlng, Math.max(map.getZoom(), 17));
+    }
+  }
+
+  function stopLocationTracking(clearVisual) {
+    if (locationWatchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(locationWatchId);
+      locationWatchId = null;
+    }
+    updateLocationButtons(false);
+    if (clearVisual && userLocationLayer) {
+      map.removeLayer(userLocationLayer);
+      userLocationLayer = null;
+      hasCenteredOnUser = false;
+    }
+    if (clearVisual) {
+      setLocationStatus("Location tracking is off.", "muted");
+    } else {
+      setLocationStatus("Location tracking stopped.", "muted");
+    }
+  }
+
+  function startLocationTracking() {
+    if (!navigator.geolocation) {
+      setLocationStatus("Location not supported by this browser.", "error");
+      updateLocationButtons(false);
+      return;
+    }
+    if (locationWatchId !== null) {
+      return;
+    }
+
+    hasCenteredOnUser = false;
+    setLocationStatus("Requesting location permission...", "info");
+    updateLocationButtons(true);
+
+    locationWatchId = navigator.geolocation.watchPosition(
+      function (pos) {
+        var latlng = [pos.coords.latitude, pos.coords.longitude];
+        updateUserLocation(latlng, pos.coords.accuracy);
+        setLocationStatus("Tracking your location live.", "info");
+      },
+      function (err) {
+        var msg = "Unable to get your location.";
+        if (err && err.code === 1) {
+          msg = "Location permission denied. Please allow access and try again.";
+        } else if (err && err.code === 2) {
+          msg = "Location unavailable. Try moving to a clearer area.";
+        } else if (err && err.code === 3) {
+          msg = "Location request timed out. Please try again.";
+        }
+        setLocationStatus(msg, "error");
+        stopLocationTracking(false);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000
+      }
+    );
+  }
+
+  function wireLocationControls() {
+    var startBtn = document.getElementById("locate-start");
+    var stopBtn = document.getElementById("locate-stop");
+    if (!startBtn || !stopBtn) {
+      return;
+    }
+    startBtn.onclick = function () {
+      startLocationTracking();
+    };
+    stopBtn.onclick = function () {
+      stopLocationTracking(false);
+    };
+    updateLocationButtons(false);
+    setLocationStatus("Location tracking is off.", "muted");
+  }
+
+  function isSourceVisible(source) {
+    if (source === "cherries") {
+      return !!(cherriesLayer && map.hasLayer(cherriesLayer));
+    }
+    if (source === "other") {
+      return !!(otherLayer && map.hasLayer(otherLayer));
+    }
+    return false;
+  }
+
+  function renderSearchHighlights(results, fitToResults) {
+    clearSearchHighlights();
+    var highlightable = [];
+    for (var i = 0; i < results.length; i++) {
+      var item = results[i];
+      if (!item || !item.latlng || !isSourceVisible(item.source)) {
+        continue;
+      }
+      highlightable.push(item);
+    }
+    if (!highlightable.length) {
+      return { visibleCount: 0, totalCount: results.length };
+    }
+
+    searchHighlightLayer = L.layerGroup();
+    var bounds = L.latLngBounds();
+    for (var j = 0; j < highlightable.length; j++) {
+      var match = highlightable[j];
+      var marker = L.circleMarker(match.latlng, {
+        className: "search-highlight-marker",
+        radius: 9,
+        fillColor: "#1d4ed8",
+        color: "#ffffff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9
+      });
+      searchHighlightLayer.addLayer(marker);
+      bounds.extend(match.latlng);
+    }
+    map.addLayer(searchHighlightLayer);
+
+    if (fitToResults && highlightable.length > 1 && bounds.isValid()) {
+      map.fitBounds(bounds.pad(0.12));
+    }
+    return { visibleCount: highlightable.length, totalCount: results.length };
+  }
+
+  function refreshSearchHighlights() {
+    if (!currentSearchQuery) {
+      clearSearchHighlights();
+      clearSearchHover();
+      return;
+    }
+    renderSearchHighlights(currentSearchResults, false);
+  }
+
+  function highlightHoveredResult(item) {
+    clearSearchHover();
+    if (!item || !item.latlng || !isSourceVisible(item.source)) {
+      return;
+    }
+    var marker = L.circleMarker(item.latlng, {
+      radius: 11,
+      fillColor: "#f59e0b",
+      color: "#ffffff",
+      weight: 3,
+      opacity: 1,
+      fillOpacity: 0.95,
+      className: "search-hover-marker"
+    });
+    searchHoverLayer = L.layerGroup([marker]);
+    map.addLayer(searchHoverLayer);
+  }
+
   function searchTrees(query) {
     if (!query || !query.trim()) {
       return [];
@@ -214,13 +450,16 @@
     return results.map(function (r) { return r.item; });
   }
 
-  function showSearchResults(results) {
+  function showSearchResults(results, fitToResults) {
     var container = document.getElementById("search-results");
     if (!container) return;
     container.innerHTML = "";
+    currentSearchResults = results.slice(0);
     if (results.length === 0) {
       container.innerHTML = '<div class="search-no-results">No matches found</div>';
       container.style.display = "block";
+      clearSearchHighlights();
+      clearSearchHover();
       return;
     }
     for (var i = 0; i < results.length; i++) {
@@ -245,6 +484,19 @@
       container.appendChild(div);
     }
     container.style.display = "block";
+    var highlightInfo = renderSearchHighlights(results, fitToResults);
+    var status = document.createElement("div");
+    status.className = "search-results-status";
+    if (highlightInfo.visibleCount === highlightInfo.totalCount) {
+      status.textContent = highlightInfo.visibleCount + " matches highlighted on map";
+    } else {
+      status.textContent =
+        highlightInfo.visibleCount +
+        " of " +
+        highlightInfo.totalCount +
+        " matches highlighted (visible layers only)";
+    }
+    container.insertBefore(status, container.firstChild);
     container.onclick = function (e) {
       var target = e.target;
       if (target.className.indexOf("search-result-item") === -1) return;
@@ -254,6 +506,26 @@
       zoomToFeature(item);
       container.style.display = "none";
       document.getElementById("search-input").value = "";
+      currentSearchQuery = "";
+      currentSearchResults = [];
+      clearSearchHighlights();
+      clearSearchHover();
+    };
+    container.onmouseover = function (e) {
+      var target = e.target;
+      if (target.className.indexOf("search-result-item") === -1) return;
+      var idx = parseInt(target.getAttribute("data-index"), 10);
+      if (isNaN(idx) || !results[idx]) return;
+      highlightHoveredResult(results[idx]);
+    };
+    container.onmouseout = function (e) {
+      var target = e.target;
+      if (target.className.indexOf("search-result-item") === -1) return;
+      var rel = e.relatedTarget;
+      if (rel && rel.className && String(rel.className).indexOf("search-result-item") !== -1) {
+        return;
+      }
+      clearSearchHover();
     };
   }
 
@@ -306,24 +578,39 @@
       clearTimeout(debounce);
       debounce = setTimeout(function () {
         var q = input.value;
-        if (!q.trim()) {
+        var trimmed = q.trim();
+        if (!trimmed) {
           results.style.display = "none";
           results.innerHTML = "";
+          currentSearchQuery = "";
+          currentSearchResults = [];
+          clearSearchHighlights();
+          clearSearchHover();
           return;
         }
+        var fitToResults = currentSearchQuery !== trimmed.toLowerCase();
+        currentSearchQuery = trimmed.toLowerCase();
         var found = searchTrees(q);
-        showSearchResults(found);
+        showSearchResults(found, fitToResults);
       }, 150);
     };
     input.onkeydown = function (e) {
       if (e.keyCode === 27) {
         results.style.display = "none";
         input.value = "";
+        currentSearchQuery = "";
+        currentSearchResults = [];
+        clearSearchHighlights();
+        clearSearchHover();
       }
     };
     document.addEventListener("click", function (e) {
       if (!results.contains(e.target) && e.target !== input) {
         results.style.display = "none";
+        currentSearchQuery = "";
+        currentSearchResults = [];
+        clearSearchHighlights();
+        clearSearchHover();
       }
     });
   }
@@ -439,6 +726,7 @@
         map.removeLayer(layer);
       }
       updateLabelsVisibility();
+      refreshSearchHighlights();
     };
   }
 
@@ -456,7 +744,11 @@
     for (var i = 0; i < features.length; i++) {
       var f = features[i];
       if (f.properties) {
-        allFeatures.push({ props: f.properties, source: source });
+        var latlng = null;
+        if (f.geometry && f.geometry.type === "Point" && f.geometry.coordinates && f.geometry.coordinates.length >= 2) {
+          latlng = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
+        }
+        allFeatures.push({ props: f.properties, source: source, latlng: latlng });
       }
     }
   }
@@ -500,4 +792,5 @@
 
   wireLabelsToggle();
   initSearch();
+  wireLocationControls();
 })();

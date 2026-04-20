@@ -94,6 +94,48 @@ body {
   position: relative;
 }
 
+.location-controls {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.2rem;
+}
+
+.location-controls button {
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #c9c2b6;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.location-controls button:hover:not(:disabled) {
+  background: #f6f2eb;
+}
+
+.location-controls button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.location-status {
+  margin: 0.45rem 0 0 0;
+  font-size: 0.8rem;
+}
+
+.location-status-info {
+  color: #1d4ed8;
+}
+
+.location-status-error {
+  color: #b91c1c;
+}
+
+.location-status-muted {
+  color: #666;
+}
+
 #search-input {
   width: 100%;
   padding: 0.4rem 0.5rem;
@@ -131,6 +173,14 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
   border-bottom: 1px solid #eee;
+}
+
+.search-results-status {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  color: #1d4ed8;
+  background: #eef4ff;
+  border-bottom: 1px solid #d6e4ff;
 }
 
 .search-result-item:last-child {
@@ -194,4 +244,49 @@ body {
   font-size: 0.85em;
   color: #888;
   margin-top: 0.3em;
+}
+
+.search-highlight-marker {
+  animation: highlightPulse 1.4s ease-in-out infinite;
+}
+
+.search-hover-marker {
+  animation: none;
+}
+
+.user-location-marker {
+  animation: userLocationPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes userLocationPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-highlight-marker {
+    animation: none;
+  }
+  .user-location-marker {
+    animation: none;
+  }
 }

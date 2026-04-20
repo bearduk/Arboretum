@@ -57,6 +57,19 @@ Try **`?tag=4001`** or **`?square=L7`** on the URL to test deep links.
 
 ---
 
+## Visitor location (optional)
+
+The map includes a **Show my location** control. It requests browser permission and then continuously updates your position while you walk.
+
+- Click **Show my location** to start live tracking.
+- Click **Stop tracking** to stop updates (recommended to save battery).
+- Position display requires geolocation support and user permission.
+- In production, geolocation usually requires **HTTPS** (or `localhost` while testing).
+
+If permission is denied or unavailable, the map shows a status message in the location panel.
+
+---
+
 ## Editing the spreadsheet (maintainer rules)
 
 1. **Source of truth** — The workbook (by default `Keele trees Dec25.xlsx`) is the master copy. After you change it, run the export command above, then **commit** the updated `.geojson` files (and the `.xlsx`, if your process keeps it in git).

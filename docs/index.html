@@ -38,6 +38,14 @@
         Show tag numbers
       </label>
     </div>
+    <div class="panel-section">
+      <h2>Your Location</h2>
+      <div class="location-controls">
+        <button type="button" id="locate-start">Show my location</button>
+        <button type="button" id="locate-stop" disabled>Stop tracking</button>
+      </div>
+      <p id="location-status" class="location-status" aria-live="polite">Location tracking is off.</p>
+    </div>
     <p class="hint">Deep link: add <code>?tag=4001</code> or <code>?square=L7</code> to the URL.</p>
   </aside>
   <div id="map" role="application" aria-label="Campus tree map"></div>
