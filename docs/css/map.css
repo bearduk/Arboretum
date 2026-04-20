@@ -175,12 +175,36 @@ body {
   border-bottom: 1px solid #eee;
 }
 
-.search-results-status {
+.search-results-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
   padding: 0.4rem 0.5rem;
-  font-size: 0.8rem;
-  color: #1d4ed8;
   background: #eef4ff;
   border-bottom: 1px solid #d6e4ff;
+}
+
+.search-results-status {
+  font-size: 0.8rem;
+  color: #1d4ed8;
+}
+
+.search-results-toggle {
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  border: 1px solid #c8d8ff;
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-results-toggle:hover {
+  background: #f7faff;
 }
 
 .search-result-item:last-child {

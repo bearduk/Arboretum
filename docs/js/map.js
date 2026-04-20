@@ -145,6 +145,7 @@
   var searchHoverLayer = null;
   var currentSearchResults = [];
   var currentSearchQuery = "";
+  var searchListExpanded = false;
   var locationWatchId = null;
   var userLocationLayer = null;
   var hasCenteredOnUser = false;
@@ -449,6 +450,11 @@
       clearSearchHover();
       return;
     }
+    var container = document.getElementById("search-results");
+    if (container && container.style.display === "block") {
+      showSearchResults(currentSearchResults, false);
+      return;
+    }
     renderSearchHighlights(currentSearchResults, false);
   }
 
@@ -513,35 +519,16 @@
     container.innerHTML = "";
     currentSearchResults = results.slice(0);
     if (results.length === 0) {
+      searchListExpanded = false;
       container.innerHTML = '<div class="search-no-results">No matches found</div>';
       container.style.display = "block";
       clearSearchHighlights();
       clearSearchHover();
       return;
     }
-    for (var i = 0; i < results.length; i++) {
-      var item = results[i];
-      var p = item.props;
-      var div = document.createElement("div");
-      div.className = "search-result-item";
-      var name = "Unknown";
-      if (p.species && p.latin_name) {
-        name = p.species + ", " + p.latin_name;
-      } else if (p.species) {
-        name = p.species;
-      } else if (p.latin_name) {
-        name = p.latin_name;
-      }
-      var label = (p.tag ? "[" + p.tag + "] " : "") + name;
-      if (p.square) {
-        label += " (" + p.square + ")";
-      }
-      div.textContent = label;
-      div.setAttribute("data-index", String(i));
-      container.appendChild(div);
-    }
-    container.style.display = "block";
     var highlightInfo = renderSearchHighlights(results, fitToResults);
+    var summary = document.createElement("div");
+    summary.className = "search-results-summary";
     var status = document.createElement("div");
     status.className = "search-results-status";
     if (highlightInfo.visibleCount === highlightInfo.totalCount) {
@@ -553,10 +540,51 @@
         highlightInfo.totalCount +
         " matches highlighted (visible layers only)";
     }
-    container.insertBefore(status, container.firstChild);
+    summary.appendChild(status);
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "search-results-toggle";
+    toggle.textContent = searchListExpanded ? "Hide list" : "View list";
+    summary.appendChild(toggle);
+    container.appendChild(summary);
+
+    if (searchListExpanded) {
+      for (var i = 0; i < results.length; i++) {
+        var item = results[i];
+        var p = item.props;
+        var div = document.createElement("div");
+        div.className = "search-result-item";
+        var name = "Unknown";
+        if (p.species && p.latin_name) {
+          name = p.species + ", " + p.latin_name;
+        } else if (p.species) {
+          name = p.species;
+        } else if (p.latin_name) {
+          name = p.latin_name;
+        }
+        var label = (p.tag ? "[" + p.tag + "] " : "") + name;
+        if (p.square) {
+          label += " (" + p.square + ")";
+        }
+        div.textContent = label;
+        div.setAttribute("data-index", String(i));
+        container.appendChild(div);
+      }
+    }
+
+    container.style.display = "block";
     container.onclick = function (e) {
-      var target = e.target;
-      if (target.className.indexOf("search-result-item") === -1) return;
+      var rawTarget = e.target;
+      var target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentNode : rawTarget;
+      var targetClass = target && target.className ? String(target.className) : "";
+      if (targetClass.indexOf("search-results-toggle") !== -1) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        searchListExpanded = !searchListExpanded;
+        showSearchResults(currentSearchResults, false);
+        return;
+      }
+      if (targetClass.indexOf("search-result-item") === -1) return;
       var idx = parseInt(target.getAttribute("data-index"), 10);
       if (isNaN(idx) || !results[idx]) return;
       var item = results[idx];
@@ -565,21 +593,27 @@
       document.getElementById("search-input").value = "";
       currentSearchQuery = "";
       currentSearchResults = [];
+      searchListExpanded = false;
       clearSearchHighlights();
       clearSearchHover();
     };
     container.onmouseover = function (e) {
-      var target = e.target;
-      if (target.className.indexOf("search-result-item") === -1) return;
+      var rawTarget = e.target;
+      var target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentNode : rawTarget;
+      var targetClass = target && target.className ? String(target.className) : "";
+      if (targetClass.indexOf("search-result-item") === -1) return;
       var idx = parseInt(target.getAttribute("data-index"), 10);
       if (isNaN(idx) || !results[idx]) return;
       highlightHoveredResult(results[idx]);
     };
     container.onmouseout = function (e) {
-      var target = e.target;
-      if (target.className.indexOf("search-result-item") === -1) return;
+      var rawTarget = e.target;
+      var target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentNode : rawTarget;
+      var targetClass = target && target.className ? String(target.className) : "";
+      if (targetClass.indexOf("search-result-item") === -1) return;
       var rel = e.relatedTarget;
-      if (rel && rel.className && String(rel.className).indexOf("search-result-item") !== -1) {
+      var relNode = rel && rel.nodeType === 3 ? rel.parentNode : rel;
+      if (relNode && relNode.className && String(relNode.className).indexOf("search-result-item") !== -1) {
         return;
       }
       clearSearchHover();
@@ -642,12 +676,14 @@
           results.innerHTML = "";
           currentSearchQuery = "";
           currentSearchResults = [];
+          searchListExpanded = false;
           clearSearchHighlights();
           clearSearchHover();
           return;
         }
         var fitToResults = currentSearchQuery !== trimmed.toLowerCase();
         currentSearchQuery = trimmed.toLowerCase();
+        searchListExpanded = false;
         var found = searchTrees(q);
         showSearchResults(found, fitToResults);
       }, 150);
@@ -658,6 +694,7 @@
         input.value = "";
         currentSearchQuery = "";
         currentSearchResults = [];
+        searchListExpanded = false;
         clearSearchHighlights();
         clearSearchHover();
       }
@@ -665,10 +702,12 @@
     document.addEventListener("click", function (e) {
       if (!results.contains(e.target) && e.target !== input) {
         results.style.display = "none";
-        currentSearchQuery = "";
-        currentSearchResults = [];
-        clearSearchHighlights();
+        searchListExpanded = false;
         clearSearchHover();
+        if (!currentSearchQuery) {
+          currentSearchResults = [];
+          clearSearchHighlights();
+        }
       }
     });
   }
