@@ -166,7 +166,7 @@ def main() -> int:
         "--input",
         "-i",
         type=Path,
-        default=Path("Keele trees Dec25.xlsx"),
+        default=Path("Keele trees database.xlsx"),
         help="Path to Excel workbook",
     )
     parser.add_argument(

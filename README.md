@@ -29,7 +29,7 @@ On Windows, use `.venv\Scripts\pip` and `.venv\Scripts\python` instead of `.venv
 ## Regenerate map data (after spreadsheet changes)
 
 ```bash
-.venv/bin/python scripts/xlsx_to_geojson.py -i "Keele trees Dec25.xlsx" -o docs/data
+.venv/bin/python scripts/xlsx_to_geojson.py -i "Keele trees database.xlsx" -o docs/data
 ```
 
 This overwrites:
@@ -72,7 +72,7 @@ If permission is denied or unavailable, the map shows a status message in the lo
 
 ## Editing the spreadsheet (maintainer rules)
 
-1. **Source of truth** — The workbook (by default `Keele trees Dec25.xlsx`) is the master copy. After you change it, run the export command above, then **commit** the updated `.geojson` files (and the `.xlsx`, if your process keeps it in git).
+1. **Source of truth** — The workbook (by default `Keele trees database.xlsx`) is the master copy. After you change it, run the export command above, then **commit** the updated `.geojson` files (and the `.xlsx`, if your process keeps it in git).
 
 2. **Coordinates** — **X** and **Y** must remain **British National Grid** easting and northing (EPSG:27700). If either is missing, that row is **omitted** from the map. Filling in coordinates is the most common data task.
 
