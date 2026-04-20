@@ -53,6 +53,8 @@ cd docs && python3 -m http.server 8765
 
 Then open [http://127.0.0.1:8765/](http://127.0.0.1:8765/).
 
+Live site (GitHub Pages): [https://bearduk.github.io/Arboretum/](https://bearduk.github.io/Arboretum/)
+
 Try **`?tag=4001`** or **`?square=L7`** on the URL to test deep links.
 
 ---
