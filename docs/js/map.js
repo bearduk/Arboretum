@@ -424,6 +424,7 @@
     var bounds = L.latLngBounds();
     for (var j = 0; j < highlightable.length; j++) {
       var match = highlightable[j];
+      // Keep overlay highlights non-interactive so clicks reach tree markers/popups underneath.
       var marker = L.circleMarker(match.latlng, {
         className: "search-highlight-marker",
         radius: 9,
@@ -431,7 +432,9 @@
         color: "#ffffff",
         weight: 2,
         opacity: 1,
-        fillOpacity: 0.9
+        fillOpacity: 0.9,
+        interactive: false,
+        bubblingMouseEvents: false
       });
       searchHighlightLayer.addLayer(marker);
       bounds.extend(match.latlng);
@@ -463,6 +466,7 @@
     if (!item || !item.latlng || !isSourceVisible(item.source)) {
       return;
     }
+    // Hover ring is visual-only; it must not capture click/touch events.
     var marker = L.circleMarker(item.latlng, {
       radius: 11,
       fillColor: "#f59e0b",
@@ -470,7 +474,9 @@
       weight: 3,
       opacity: 1,
       fillOpacity: 0.95,
-      className: "search-hover-marker"
+      className: "search-hover-marker",
+      interactive: false,
+      bubblingMouseEvents: false
     });
     searchHoverLayer = L.layerGroup([marker]);
     map.addLayer(searchHoverLayer);
