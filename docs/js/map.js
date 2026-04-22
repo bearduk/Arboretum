@@ -151,8 +151,11 @@
   var locationWatchId = null;
   var userLocationLayer = null;
   var hasCenteredOnUser = false;
+  var lastAcceptedPosition = null;
   var selectedTreeMarker = null;
   var selectedTreeOriginalStyle = null;
+  var MAX_POSITION_AGE_MS = 15000;
+  var MAX_WORSE_ACCURACY_JUMP_METERS = 60;
 
   function buildLabelsLayer(geojson, className) {
     var labelsGroup = L.layerGroup();
@@ -334,6 +337,7 @@
       map.removeLayer(userLocationLayer);
       userLocationLayer = null;
       hasCenteredOnUser = false;
+      lastAcceptedPosition = null;
     }
     if (clearVisual) {
       setLocationStatus("Location tracking is off.", "muted");
@@ -353,13 +357,36 @@
     }
 
     hasCenteredOnUser = false;
+    lastAcceptedPosition = null;
     setLocationStatus("Requesting location permission...", "info");
     updateLocationButtons(true);
 
     locationWatchId = navigator.geolocation.watchPosition(
       function (pos) {
+        var timestampMs = typeof pos.timestamp === "number" ? pos.timestamp : Date.now();
+        var ageMs = Date.now() - timestampMs;
+        if (ageMs > MAX_POSITION_AGE_MS) {
+          setLocationStatus("Ignoring stale location fix; waiting for a fresh update...", "info");
+          return;
+        }
         var latlng = [pos.coords.latitude, pos.coords.longitude];
-        updateUserLocation(latlng, pos.coords.accuracy);
+        var accuracy = typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 0 ? pos.coords.accuracy : 0;
+        if (lastAcceptedPosition) {
+          var previousLatLng = L.latLng(lastAcceptedPosition.latlng[0], lastAcceptedPosition.latlng[1]);
+          var currentLatLng = L.latLng(latlng[0], latlng[1]);
+          var movedMeters = previousLatLng.distanceTo(currentLatLng);
+          var accuracyWorseBy = accuracy - lastAcceptedPosition.accuracy;
+          if (accuracyWorseBy > MAX_WORSE_ACCURACY_JUMP_METERS && movedMeters < accuracyWorseBy * 0.5) {
+            setLocationStatus("Discarding low-confidence location update; waiting for a better fix...", "info");
+            return;
+          }
+        }
+        updateUserLocation(latlng, accuracy);
+        lastAcceptedPosition = {
+          latlng: latlng,
+          accuracy: accuracy,
+          timestamp: timestampMs
+        };
         setLocationStatus("Tracking your location live.", "info");
       },
       function (err) {
@@ -376,7 +403,7 @@
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 5000,
+        maximumAge: 0,
         timeout: 15000
       }
     );
