@@ -2,6 +2,8 @@
 (function () {
   var KEELE_FALLBACK = [53.004, -2.267];
   var ZOOM_FALLBACK = 15;
+  var MAX_HIGHLIGHT_MARKERS = 200;
+  var MAX_LIST_ITEMS = 200;
 
   function getQueryParams() {
     var out = {};
@@ -417,13 +419,15 @@
       highlightable.push(item);
     }
     if (!highlightable.length) {
-      return { visibleCount: 0, totalCount: results.length };
+      return { highlightedCount: 0, visibleCount: 0, totalCount: results.length, capped: false };
     }
 
+    var capped = highlightable.length > MAX_HIGHLIGHT_MARKERS;
+    var highlighted = capped ? highlightable.slice(0, MAX_HIGHLIGHT_MARKERS) : highlightable;
     searchHighlightLayer = L.layerGroup();
     var bounds = L.latLngBounds();
-    for (var j = 0; j < highlightable.length; j++) {
-      var match = highlightable[j];
+    for (var j = 0; j < highlighted.length; j++) {
+      var match = highlighted[j];
       // Keep overlay highlights non-interactive so clicks reach tree markers/popups underneath.
       var marker = L.circleMarker(match.latlng, {
         className: "search-highlight-marker",
@@ -441,10 +445,15 @@
     }
     map.addLayer(searchHighlightLayer);
 
-    if (fitToResults && highlightable.length > 1 && bounds.isValid()) {
+    if (fitToResults && highlighted.length > 1 && bounds.isValid()) {
       map.fitBounds(bounds.pad(0.12));
     }
-    return { visibleCount: highlightable.length, totalCount: results.length };
+    return {
+      highlightedCount: highlighted.length,
+      visibleCount: highlightable.length,
+      totalCount: results.length,
+      capped: capped
+    };
   }
 
   function refreshSearchHighlights() {
@@ -507,9 +516,6 @@
       if (tagMatch || textMatch) {
         results.push({ item: item, tagMatch: tagMatch });
       }
-      if (results.length >= 50) {
-        break;
-      }
     }
     results.sort(function (a, b) {
       if (a.tagMatch && !b.tagMatch) return -1;
@@ -537,14 +543,22 @@
     summary.className = "search-results-summary";
     var status = document.createElement("div");
     status.className = "search-results-status";
-    if (highlightInfo.visibleCount === highlightInfo.totalCount) {
-      status.textContent = highlightInfo.visibleCount + " matches highlighted on map";
+    if (highlightInfo.totalCount === 0) {
+      status.textContent = "No matches found";
+    } else if (highlightInfo.visibleCount === 0) {
+      status.textContent = "0 of " + highlightInfo.totalCount + " matches highlighted (visible layers only)";
+    } else if (highlightInfo.visibleCount === highlightInfo.totalCount && !highlightInfo.capped) {
+      status.textContent = highlightInfo.highlightedCount + " matches highlighted on map";
     } else {
-      status.textContent =
-        highlightInfo.visibleCount +
-        " of " +
-        highlightInfo.totalCount +
-        " matches highlighted (visible layers only)";
+      var reasons = [];
+      if (highlightInfo.visibleCount < highlightInfo.totalCount) {
+        reasons.push("visible layers only");
+      }
+      if (highlightInfo.capped) {
+        reasons.push("capped for performance");
+      }
+      var suffix = reasons.length ? " (" + reasons.join(", ") + ")" : "";
+      status.textContent = highlightInfo.highlightedCount + " of " + highlightInfo.totalCount + " matches highlighted" + suffix;
     }
     summary.appendChild(status);
     var toggle = document.createElement("button");
@@ -555,8 +569,9 @@
     container.appendChild(summary);
 
     if (searchListExpanded) {
-      for (var i = 0; i < results.length; i++) {
-        var item = results[i];
+      var listItems = results.length > MAX_LIST_ITEMS ? results.slice(0, MAX_LIST_ITEMS) : results;
+      for (var i = 0; i < listItems.length; i++) {
+        var item = listItems[i];
         var p = item.props;
         var div = document.createElement("div");
         div.className = "search-result-item";
@@ -575,6 +590,13 @@
         div.textContent = label;
         div.setAttribute("data-index", String(i));
         container.appendChild(div);
+      }
+      if (results.length > listItems.length) {
+        var listLimitNote = document.createElement("div");
+        listLimitNote.className = "search-no-results";
+        listLimitNote.textContent =
+          "Showing first " + listItems.length + " results in list for performance.";
+        container.appendChild(listLimitNote);
       }
     }
 
