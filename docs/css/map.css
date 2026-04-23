@@ -209,6 +209,13 @@ body {
   border-radius: var(--radius-sm);
 }
 
+.labels-status {
+  margin: var(--space-1) var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .map-shell {
   position: relative;
   flex: 1;
