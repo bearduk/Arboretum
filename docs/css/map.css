@@ -18,6 +18,16 @@
   --color-success: #256b45;
   --color-warning: #9a6418;
   --color-error: #a73535;
+  --color-surface-soft: rgba(255, 255, 255, 0.74);
+  --color-panel-glow: rgba(255, 255, 255, 0.48);
+  --color-map-frame: #e6ddd0;
+  --color-header-highlight: rgba(255, 255, 255, 0.16);
+  --color-header-shadow: rgba(8, 25, 18, 0.18);
+  --gradient-page: radial-gradient(circle at top left, rgba(232, 204, 186, 0.5), rgba(232, 204, 186, 0) 32%), linear-gradient(180deg, #fbfaf7 0%, #f6f1e7 58%, #f2ede3 100%);
+  --gradient-header: linear-gradient(135deg, #153727 0%, #204b37 56%, #315c46 100%);
+  --gradient-panel: linear-gradient(180deg, rgba(251, 249, 244, 0.94) 0%, rgba(242, 236, 226, 0.94) 100%);
+  --gradient-map-shell: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(248, 243, 236, 0.96) 100%);
+  --gradient-button: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 242, 235, 0.98) 100%);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -32,6 +42,8 @@
 
   --shadow-control: 0 1px 2px rgba(23, 33, 27, 0.12);
   --shadow-popup: 0 8px 24px rgba(23, 33, 27, 0.16);
+  --shadow-panel: 0 14px 32px rgba(40, 42, 35, 0.08);
+  --shadow-frame: 0 14px 40px rgba(33, 35, 30, 0.1);
   --focus-ring: 0 0 0 3px rgba(124, 41, 66, 0.28);
 }
 
@@ -42,13 +54,15 @@ html, body {
   font-family: var(--font-ui);
   font-size: 16px;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--gradient-page);
+  background-color: var(--color-bg);
 }
 
 body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: relative;
 }
 
 .refresh-progress {
@@ -84,15 +98,42 @@ body {
 
 .app-header {
   padding: var(--space-3) var(--space-4);
-  background: var(--color-primary);
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-header);
   color: #fbfaf6;
   border-bottom: 3px solid var(--color-accent-blossom);
+  box-shadow: 0 10px 28px var(--color-header-shadow);
+}
+
+.app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(231, 200, 207, 0.28), rgba(231, 200, 207, 0) 28%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.app-header::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -46px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-header-highlight), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 
 .app-header-inner {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  z-index: 1;
 }
 
 .app-logo {
@@ -141,10 +182,20 @@ body {
 
 .layers-panel {
   padding: var(--space-3) var(--space-4);
-  background: #f1ede5;
+  position: relative;
+  background: var(--gradient-panel);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-control);
+  box-shadow: var(--shadow-panel);
   z-index: 500;
+}
+
+.layers-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--color-panel-glow), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 
 .layers-panel h2 {
@@ -163,6 +214,7 @@ body {
   margin: var(--space-1) 0;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   cursor: pointer;
   font-size: 0.95rem;
 }
@@ -187,7 +239,9 @@ body {
 }
 
 .layer-row:hover {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(216, 162, 173, 0.14);
+  transform: translateY(-1px);
 }
 
 .layer-row input {
@@ -204,7 +258,7 @@ body {
 
 .layers-panel code {
   font-size: 0.85em;
-  background: #e8e1d7;
+  background: rgba(232, 225, 215, 0.82);
   padding: 0.1em 0.35em;
   border-radius: var(--radius-sm);
 }
@@ -220,6 +274,13 @@ body {
   position: relative;
   flex: 1;
   min-height: 360px;
+  margin: var(--space-3);
+  margin-top: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-map-frame);
+  border-radius: 18px;
+  background: var(--gradient-map-shell);
+  box-shadow: var(--shadow-frame);
 }
 
 #map {
@@ -241,7 +302,8 @@ body {
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
   color: var(--color-primary);
   font-family: var(--font-ui);
   font-size: 1.35rem;
@@ -252,7 +314,7 @@ body {
 }
 
 .map-view-button:hover {
-  background: #fbf8f5;
+  background: rgba(251, 248, 245, 0.96);
   border-color: #c4b8a8;
 }
 
@@ -286,6 +348,10 @@ body.map-expanded .map-shell {
   inset: 0;
   z-index: 1500;
   min-height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
   background: var(--color-bg);
 }
 
@@ -302,7 +368,8 @@ body.map-expanded .map-collapse-button {
   padding: var(--space-2) var(--space-4);
   font-size: 0.75rem;
   color: var(--color-text-muted);
-  background: #fbfaf6;
+  background: rgba(251, 250, 246, 0.88);
+  backdrop-filter: blur(6px);
   border-top: 1px solid var(--color-border);
 }
 
@@ -343,7 +410,8 @@ body.map-expanded .map-collapse-button {
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-primary);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 18px rgba(41, 43, 36, 0.06);
   color: var(--color-text);
   font-size: 0.88rem;
   line-height: 1.4;
@@ -379,15 +447,18 @@ body.map-expanded .map-collapse-button {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--gradient-button);
   color: var(--color-text);
   box-shadow: var(--shadow-control);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
   cursor: pointer;
 }
 
 .location-controls button:hover:not(:disabled) {
-  background: #f6f2eb;
+  background: #f8f3ed;
   border-color: #c4b8a8;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(43, 46, 39, 0.1);
 }
 
 .location-controls button:disabled {
@@ -401,18 +472,21 @@ body.map-expanded .map-collapse-button {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--gradient-button);
   color: var(--color-primary);
   font-family: var(--font-ui);
   font-size: 0.9rem;
   font-weight: 600;
   box-shadow: var(--shadow-control);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
   cursor: pointer;
 }
 
 .utility-button:hover {
-  background: #fbf8f5;
+  background: #fdfaf7;
   border-color: #c4b8a8;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(43, 46, 39, 0.1);
 }
 
 .utility-button.is-busy {
@@ -471,7 +545,7 @@ body.map-expanded .map-collapse-button {
   font-family: var(--font-ui);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.88);
   color: var(--color-text);
   box-shadow: var(--shadow-control);
 }
@@ -490,7 +564,8 @@ body.map-expanded .map-collapse-button {
   right: 0;
   max-height: 280px;
   overflow-y: auto;
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
@@ -509,7 +584,7 @@ body.map-expanded .map-collapse-button {
   text-align: left;
   cursor: pointer;
   color: var(--color-text);
-  background: var(--color-surface);
+  background: transparent;
   border: 0;
   border-bottom: 1px solid #ece7df;
 }
@@ -520,7 +595,7 @@ body.map-expanded .map-collapse-button {
   justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: #f5eee9;
+  background: linear-gradient(180deg, #f7f0ea 0%, #f3ebe4 100%);
   border-bottom: 1px solid #eadbd5;
 }
 
@@ -536,7 +611,7 @@ body.map-expanded .map-collapse-button {
   line-height: 1.1;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.86);
   color: var(--color-primary);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
@@ -602,7 +677,7 @@ body.map-expanded .map-collapse-button {
   display: block;
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: #fff7df;
+  background: linear-gradient(180deg, #fffaf0 0%, #fff3d3 100%);
   border-left: 3px solid var(--color-warning);
   border-radius: var(--radius-sm);
   font-size: 0.9em;
@@ -668,6 +743,7 @@ body.map-expanded .map-collapse-button {
 
 .leaflet-popup-content-wrapper {
   border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(251, 248, 243, 0.98) 100%);
   box-shadow: var(--shadow-popup);
 }
 
@@ -744,6 +820,7 @@ body.map-expanded .map-collapse-button {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 0;
   }
 
   .app-header {
@@ -756,6 +833,7 @@ body.map-expanded .map-collapse-button {
     overflow: auto;
     border-right: 1px solid var(--color-border);
     border-bottom: 0;
+    border-top-right-radius: 18px;
   }
 
   .map-shell {
@@ -763,6 +841,9 @@ body.map-expanded .map-collapse-button {
     grid-row: 2;
     min-height: 0;
     height: 100%;
+    margin-left: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
 
   #map {
@@ -811,6 +892,7 @@ body.map-expanded .map-collapse-button {
     padding: var(--space-2) var(--space-3);
     max-height: 34vh;
     overflow: auto;
+    backdrop-filter: none;
   }
 
   .panel-section {
@@ -836,6 +918,10 @@ body.map-expanded .map-collapse-button {
 
   #map {
     min-height: 62vh;
+  }
+
+  .map-shell {
+    margin: var(--space-2) var(--space-2) var(--space-3);
   }
 
   .app-footer {
