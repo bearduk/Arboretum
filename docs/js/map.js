@@ -36,35 +36,46 @@
   }
 
   function propsToPopupHtml(props) {
-    var lines = [];
-    if (props.latin_name) {
-      lines.push("<strong>" + escapeHtml(props.latin_name) + "</strong>");
-    }
-    if (props.species) {
-      lines.push(escapeHtml(props.species));
+    var rows = [];
+    var title = props.latin_name || props.species || "Tree";
+    var subtitle = props.latin_name && props.species ? props.species : "";
+    var html = '<div class="tree-popup">';
+    html += '<h3 class="tree-popup-title">' + escapeHtml(title) + '</h3>';
+    if (subtitle) {
+      html += '<p class="tree-popup-subtitle">' + escapeHtml(subtitle) + '</p>';
     }
     if (props.tag !== undefined && props.tag !== null && props.tag !== "") {
-      lines.push("Tag: " + escapeHtml(props.tag));
+      rows.push(["Tag", props.tag]);
     }
     if (props.square) {
-      lines.push("Square: " + escapeHtml(props.square));
+      rows.push(["Square", props.square]);
     }
     if (props.planted) {
-      lines.push("Planted: " + escapeHtml(props.planted));
-    }
-    if (props.memorial_commemorative) {
-      lines.push("<span class=\"popup-memorial\">" + escapeHtml(props.memorial_commemorative) + "</span>");
+      rows.push(["Planted", props.planted]);
     }
     if (props.w3w) {
-      lines.push("w3w: " + escapeHtml(props.w3w));
+      rows.push(["what3words", props.w3w]);
+    }
+    if (rows.length) {
+      html += '<div class="tree-popup-meta">';
+      for (var i = 0; i < rows.length; i++) {
+        html += '<div class="tree-popup-row"><span class="tree-popup-label">' +
+          escapeHtml(rows[i][0]) + '</span><span class="tree-popup-value">' +
+          escapeHtml(rows[i][1]) + '</span></div>';
+      }
+      html += '</div>';
+    }
+    if (props.memorial_commemorative) {
+      html += "<span class=\"popup-memorial\">" + escapeHtml(props.memorial_commemorative) + "</span>";
     }
     if (props.comments) {
-      lines.push("<span class=\"popup-comments\">" + escapeHtml(props.comments) + "</span>");
+      html += "<span class=\"popup-comments\">" + escapeHtml(props.comments) + "</span>";
     }
     if (props.source_sheet) {
-      lines.push("<span class=\"popup-meta\">Layer: " + escapeHtml(props.source_sheet) + "</span>");
+      html += "<span class=\"popup-meta\">Layer: " + escapeHtml(props.source_sheet) + "</span>";
     }
-    return lines.length ? lines.join("<br/>") : "Tree";
+    html += "</div>";
+    return html;
   }
 
   var touchHitRenderer = L.canvas({ tolerance: 10 });
@@ -98,7 +109,9 @@
 
   function loadGeoJSON(url, done) {
     var req = new XMLHttpRequest();
-    req.open("GET", url, true);
+    var cacheBuster = window.APP_CACHE_BUSTER || "";
+    var requestUrl = cacheBuster ? url + (url.indexOf("?") === -1 ? "?" : "&") + "_refresh=" + encodeURIComponent(cacheBuster) : url;
+    req.open("GET", requestUrl, true);
     req.onreadystatechange = function () {
       if (req.readyState !== 4) {
         return;
@@ -111,7 +124,7 @@
           done(e);
         }
       } else {
-        done(new Error("HTTP " + req.status + " for " + url));
+        done(new Error("HTTP " + req.status + " for " + requestUrl));
       }
     };
     req.send();
@@ -148,6 +161,7 @@
   var currentSearchResults = [];
   var currentSearchQuery = "";
   var searchListExpanded = false;
+  var activeSearchIndex = -1;
   var locationWatchId = null;
   var userLocationLayer = null;
   var hasCenteredOnUser = false;
@@ -156,6 +170,56 @@
   var selectedTreeOriginalStyle = null;
   var MAX_POSITION_AGE_MS = 15000;
   var MAX_WORSE_ACCURACY_JUMP_METERS = 60;
+  var loadErrors = [];
+  var noticeDismissTimer = null;
+
+  function setNotice(message, kind) {
+    var el = document.getElementById("app-notice");
+    if (!el) return;
+    if (noticeDismissTimer) {
+      clearTimeout(noticeDismissTimer);
+      noticeDismissTimer = null;
+    }
+    if (!message) {
+      el.className = "app-notice";
+      el.textContent = "";
+      return;
+    }
+    el.className = "app-notice is-visible app-notice-" + (kind || "info");
+    el.textContent = message;
+  }
+
+  function setTemporaryNotice(message, kind, durationMs) {
+    setNotice(message, kind);
+    noticeDismissTimer = setTimeout(function () {
+      setNotice("");
+    }, durationMs || 3500);
+  }
+
+  function setSearchExpanded(isExpanded) {
+    var input = document.getElementById("search-input");
+    if (input) {
+      input.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+    }
+  }
+
+  function setActiveSearchIndex(index) {
+    var container = document.getElementById("search-results");
+    if (!container) return;
+    var items = container.querySelectorAll(".search-result-item");
+    activeSearchIndex = -1;
+    for (var i = 0; i < items.length; i++) {
+      items[i].className = items[i].className.replace(/\bis-active\b/g, "").replace(/\s+/g, " ");
+      items[i].setAttribute("aria-selected", "false");
+    }
+    if (index < 0 || index >= items.length) {
+      return;
+    }
+    activeSearchIndex = index;
+    items[index].className += " is-active";
+    items[index].setAttribute("aria-selected", "true");
+    items[index].focus();
+  }
 
   function buildLabelsLayer(geojson, className) {
     var labelsGroup = L.layerGroup();
@@ -244,8 +308,8 @@
     selectedTreeMarker = layer;
     selectedTreeOriginalStyle = getMarkerStyleSnapshot(layer);
     layer.setStyle({
-      fillColor: "#f59e0b",
-      color: "#7c2d12",
+      fillColor: "#d8a2ad",
+      color: "#7c2942",
       weight: 2,
       opacity: 1,
       fillOpacity: 1
@@ -281,13 +345,27 @@
 
   function updateLocationButtons(isTracking) {
     var startBtn = document.getElementById("locate-start");
+    var centerBtn = document.getElementById("locate-center");
     var stopBtn = document.getElementById("locate-stop");
     if (startBtn) {
       startBtn.disabled = isTracking;
     }
+    if (centerBtn) {
+      centerBtn.disabled = !lastAcceptedPosition;
+    }
     if (stopBtn) {
       stopBtn.disabled = !isTracking;
     }
+  }
+
+  function centerMapOnUser() {
+    if (!lastAcceptedPosition || !lastAcceptedPosition.latlng) {
+      setLocationStatus("Location not available yet. Start tracking first.", "muted");
+      updateLocationButtons(locationWatchId !== null);
+      return;
+    }
+    map.setView(lastAcceptedPosition.latlng, Math.max(map.getZoom(), 17));
+    setLocationStatus("Map centered on your latest location.", "info");
   }
 
   function updateUserLocation(latlng, accuracyMeters) {
@@ -325,9 +403,10 @@
       hasCenteredOnUser = true;
       map.setView(latlng, Math.max(map.getZoom(), 17));
     }
+    updateLocationButtons(locationWatchId !== null);
   }
 
-  function stopLocationTracking(clearVisual) {
+  function stopLocationTracking(clearVisual, preserveStatus) {
     if (locationWatchId !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(locationWatchId);
       locationWatchId = null;
@@ -339,10 +418,12 @@
       hasCenteredOnUser = false;
       lastAcceptedPosition = null;
     }
-    if (clearVisual) {
-      setLocationStatus("Location tracking is off.", "muted");
-    } else {
-      setLocationStatus("Location tracking stopped.", "muted");
+    if (!preserveStatus) {
+      if (clearVisual) {
+        setLocationStatus("Location tracking is off.", "muted");
+      } else {
+        setLocationStatus("Location tracking stopped.", "muted");
+      }
     }
   }
 
@@ -361,45 +442,51 @@
     setLocationStatus("Requesting location permission...", "info");
     updateLocationButtons(true);
 
-    locationWatchId = navigator.geolocation.watchPosition(
-      function (pos) {
-        var timestampMs = typeof pos.timestamp === "number" ? pos.timestamp : Date.now();
-        var ageMs = Date.now() - timestampMs;
-        if (ageMs > MAX_POSITION_AGE_MS) {
-          setLocationStatus("Ignoring stale location fix; waiting for a fresh update...", "info");
+    function handlePosition(pos) {
+      var timestampMs = typeof pos.timestamp === "number" ? pos.timestamp : Date.now();
+      var ageMs = Date.now() - timestampMs;
+      var latlng = [pos.coords.latitude, pos.coords.longitude];
+      var accuracy = typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 0 ? pos.coords.accuracy : 0;
+      if (ageMs > MAX_POSITION_AGE_MS && lastAcceptedPosition) {
+        setLocationStatus("Waiting for a fresher location update...", "info");
+        return;
+      }
+      if (lastAcceptedPosition) {
+        var previousLatLng = L.latLng(lastAcceptedPosition.latlng[0], lastAcceptedPosition.latlng[1]);
+        var currentLatLng = L.latLng(latlng[0], latlng[1]);
+        var movedMeters = previousLatLng.distanceTo(currentLatLng);
+        var accuracyWorseBy = accuracy - lastAcceptedPosition.accuracy;
+        if (accuracyWorseBy > MAX_WORSE_ACCURACY_JUMP_METERS && movedMeters < accuracyWorseBy * 0.5) {
+          setLocationStatus("Discarding low-confidence location update; waiting for a better fix...", "info");
           return;
         }
-        var latlng = [pos.coords.latitude, pos.coords.longitude];
-        var accuracy = typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 0 ? pos.coords.accuracy : 0;
-        if (lastAcceptedPosition) {
-          var previousLatLng = L.latLng(lastAcceptedPosition.latlng[0], lastAcceptedPosition.latlng[1]);
-          var currentLatLng = L.latLng(latlng[0], latlng[1]);
-          var movedMeters = previousLatLng.distanceTo(currentLatLng);
-          var accuracyWorseBy = accuracy - lastAcceptedPosition.accuracy;
-          if (accuracyWorseBy > MAX_WORSE_ACCURACY_JUMP_METERS && movedMeters < accuracyWorseBy * 0.5) {
-            setLocationStatus("Discarding low-confidence location update; waiting for a better fix...", "info");
-            return;
-          }
-        }
-        updateUserLocation(latlng, accuracy);
-        lastAcceptedPosition = {
-          latlng: latlng,
-          accuracy: accuracy,
-          timestamp: timestampMs
-        };
+      }
+      updateUserLocation(latlng, accuracy);
+      lastAcceptedPosition = {
+        latlng: latlng,
+        accuracy: accuracy,
+        timestamp: timestampMs
+      };
+      if (ageMs > MAX_POSITION_AGE_MS) {
+        setLocationStatus("Showing the browser's last known location; waiting for a fresher update.", "info");
+      } else {
         setLocationStatus("Tracking your location live.", "info");
-      },
+      }
+    }
+
+    locationWatchId = navigator.geolocation.watchPosition(
+      handlePosition,
       function (err) {
         var msg = "Unable to get your location.";
         if (err && err.code === 1) {
           msg = "Location permission denied. Please allow access and try again.";
         } else if (err && err.code === 2) {
-          msg = "Location unavailable. Try moving to a clearer area.";
+          msg = "Location unavailable in this browser. Try Safari or Chrome.";
         } else if (err && err.code === 3) {
-          msg = "Location request timed out. Please try again.";
+          msg = "Location request timed out. Try Safari or Chrome if this keeps happening.";
         }
         setLocationStatus(msg, "error");
-        stopLocationTracking(false);
+        stopLocationTracking(false, true);
       },
       {
         enableHighAccuracy: true,
@@ -407,22 +494,66 @@
         timeout: 15000
       }
     );
+
+    navigator.geolocation.getCurrentPosition(
+      handlePosition,
+      function () {},
+      {
+        enableHighAccuracy: true,
+        maximumAge: 600000,
+        timeout: 8000
+      }
+    );
   }
 
   function wireLocationControls() {
     var startBtn = document.getElementById("locate-start");
+    var centerBtn = document.getElementById("locate-center");
     var stopBtn = document.getElementById("locate-stop");
-    if (!startBtn || !stopBtn) {
+    if (!startBtn || !centerBtn || !stopBtn) {
       return;
     }
     startBtn.onclick = function () {
       startLocationTracking();
+    };
+    centerBtn.onclick = function () {
+      centerMapOnUser();
     };
     stopBtn.onclick = function () {
       stopLocationTracking(false);
     };
     updateLocationButtons(false);
     setLocationStatus("Location tracking is off.", "muted");
+  }
+
+  function wireRefreshCacheControl() {
+    var btn = document.getElementById("refresh-cache");
+    if (!btn) {
+      return;
+    }
+    btn.onclick = function () {
+      var progress = document.getElementById("refresh-progress");
+      btn.disabled = true;
+      btn.className += " is-busy";
+      btn.textContent = "Refreshing...";
+      if (progress) {
+        progress.className = "refresh-progress is-visible";
+        progress.setAttribute("aria-hidden", "false");
+      }
+      var search = window.location.search || "";
+      var params = [];
+      var pairs = search.length > 1 ? search.substring(1).split("&") : [];
+      for (var i = 0; i < pairs.length; i++) {
+        if (!pairs[i] || pairs[i].indexOf("_refresh=") === 0) {
+          continue;
+        }
+        params.push(pairs[i]);
+      }
+      params.push("_refresh=" + encodeURIComponent(String(Date.now())));
+      setTimeout(function () {
+        window.location.replace(window.location.pathname + "?" + params.join("&") + window.location.hash);
+      }, 180);
+    };
   }
 
   function isSourceVisible(source) {
@@ -459,7 +590,7 @@
       var marker = L.circleMarker(match.latlng, {
         className: "search-highlight-marker",
         radius: 9,
-        fillColor: "#1d4ed8",
+        fillColor: "#7c2942",
         color: "#ffffff",
         weight: 2,
         opacity: 1,
@@ -505,7 +636,7 @@
     // Hover ring is visual-only; it must not capture click/touch events.
     var marker = L.circleMarker(item.latlng, {
       radius: 11,
-      fillColor: "#f59e0b",
+      fillColor: "#d8a2ad",
       color: "#ffffff",
       weight: 3,
       opacity: 1,
@@ -559,8 +690,10 @@
     currentSearchResults = results.slice(0);
     if (results.length === 0) {
       searchListExpanded = false;
+      activeSearchIndex = -1;
       container.innerHTML = '<div class="search-no-results">No matches found</div>';
       container.style.display = "block";
+      setSearchExpanded(true);
       clearSearchHighlights();
       clearSearchHover();
       return;
@@ -600,8 +733,12 @@
       for (var i = 0; i < listItems.length; i++) {
         var item = listItems[i];
         var p = item.props;
-        var div = document.createElement("div");
+        var div = document.createElement("button");
         div.className = "search-result-item";
+        div.type = "button";
+        div.setAttribute("role", "option");
+        div.setAttribute("aria-selected", "false");
+        div.id = "search-result-" + i;
         var name = "Unknown";
         if (p.species && p.latin_name) {
           name = p.species + ", " + p.latin_name;
@@ -628,6 +765,7 @@
     }
 
     container.style.display = "block";
+    setSearchExpanded(true);
     container.onclick = function (e) {
       var rawTarget = e.target;
       var target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentNode : rawTarget;
@@ -645,10 +783,12 @@
       var item = results[idx];
       zoomToFeature(item);
       container.style.display = "none";
+      setSearchExpanded(false);
       document.getElementById("search-input").value = "";
       currentSearchQuery = "";
       currentSearchResults = [];
       searchListExpanded = false;
+      activeSearchIndex = -1;
       clearSearchHighlights();
       clearSearchHover();
     };
@@ -728,36 +868,80 @@
         var trimmed = q.trim();
         if (!trimmed) {
           results.style.display = "none";
+          setSearchExpanded(false);
           results.innerHTML = "";
           currentSearchQuery = "";
           currentSearchResults = [];
           searchListExpanded = false;
+          activeSearchIndex = -1;
           clearSearchHighlights();
           clearSearchHover();
           return;
         }
         var fitToResults = currentSearchQuery !== trimmed.toLowerCase();
         currentSearchQuery = trimmed.toLowerCase();
-        searchListExpanded = false;
         var found = searchTrees(q);
+        searchListExpanded = found.length > 0 && found.length <= 12;
+        activeSearchIndex = -1;
         showSearchResults(found, fitToResults);
       }, 150);
     };
     input.onkeydown = function (e) {
       if (e.keyCode === 27) {
         results.style.display = "none";
+        setSearchExpanded(false);
         input.value = "";
         currentSearchQuery = "";
         currentSearchResults = [];
         searchListExpanded = false;
+        activeSearchIndex = -1;
         clearSearchHighlights();
         clearSearchHover();
+      } else if (e.keyCode === 40) {
+        if (results.style.display === "block") {
+          if (e.preventDefault) e.preventDefault();
+          setActiveSearchIndex(activeSearchIndex + 1);
+        }
+      } else if (e.keyCode === 38) {
+        if (results.style.display === "block") {
+          if (e.preventDefault) e.preventDefault();
+          setActiveSearchIndex(activeSearchIndex <= 0 ? 0 : activeSearchIndex - 1);
+        }
+      } else if (e.keyCode === 13 && currentSearchResults.length === 1) {
+        if (e.preventDefault) e.preventDefault();
+        zoomToFeature(currentSearchResults[0]);
+        results.style.display = "none";
+        setSearchExpanded(false);
+        input.value = "";
+        currentSearchQuery = "";
+        currentSearchResults = [];
+        searchListExpanded = false;
+        activeSearchIndex = -1;
+        clearSearchHighlights();
+        clearSearchHover();
+      }
+    };
+    results.onkeydown = function (e) {
+      var items = results.querySelectorAll(".search-result-item");
+      if (!items.length) return;
+      if (e.keyCode === 40) {
+        if (e.preventDefault) e.preventDefault();
+        setActiveSearchIndex(activeSearchIndex >= items.length - 1 ? items.length - 1 : activeSearchIndex + 1);
+      } else if (e.keyCode === 38) {
+        if (e.preventDefault) e.preventDefault();
+        setActiveSearchIndex(activeSearchIndex <= 0 ? 0 : activeSearchIndex - 1);
+      } else if (e.keyCode === 27) {
+        results.style.display = "none";
+        setSearchExpanded(false);
+        input.focus();
       }
     };
     document.addEventListener("click", function (e) {
       if (!results.contains(e.target) && e.target !== input) {
         results.style.display = "none";
+        setSearchExpanded(false);
         searchListExpanded = false;
+        activeSearchIndex = -1;
         clearSearchHover();
         if (!currentSearchQuery) {
           currentSearchResults = [];
@@ -824,6 +1008,7 @@
   }
 
   function applyDeepLink() {
+    var found = false;
     if (!cherriesLayer) {
       return;
     }
@@ -833,7 +1018,7 @@
         cbCherries.checked = true;
       }
       map.addLayer(cherriesLayer);
-      var found = findAndOpenPopup(cherriesLayer, cherriesLayerRef, function (p) {
+      found = findAndOpenPopup(cherriesLayer, cherriesLayerRef, function (p) {
         return String(p.tag) === pendingTag;
       });
       if (!found && otherLayer) {
@@ -846,6 +1031,11 @@
           return String(p.tag) === pendingTag;
         });
       }
+      if (found) {
+        setNotice("Showing tree tag " + pendingTag + ".", "info");
+      } else {
+        setNotice("No tree found for tag " + pendingTag + ". Check the tag number or try search.", "warning");
+      }
       return;
     }
     if (pendingSquare) {
@@ -853,9 +1043,14 @@
         cbCherries.checked = true;
       }
       map.addLayer(cherriesLayer);
-      findAndOpenPopup(cherriesLayer, cherriesLayerRef, function (p) {
+      found = findAndOpenPopup(cherriesLayer, cherriesLayerRef, function (p) {
         return p.square && String(p.square).toLowerCase() === pendingSquare;
       });
+      if (found) {
+        setNotice("Showing the first cherry found in square " + pendingSquare.toUpperCase() + ".", "info");
+      } else {
+        setNotice("No cherry found for square " + pendingSquare.toUpperCase() + ". Check the square reference or try search.", "warning");
+      }
     }
   }
 
@@ -867,6 +1062,11 @@
     }
     fitToCherries();
     applyDeepLink();
+    if (loadErrors.length) {
+      setNotice("Some tree data could not be loaded. The map may be incomplete.", "error");
+    } else if (!pendingTag && !pendingSquare) {
+      setNotice("");
+    }
   }
 
   function wireLayerCheckbox(id, layer, labels) {
@@ -906,15 +1106,18 @@
     }
   }
 
+  setNotice("Loading tree data...", "info");
+
   loadGeoJSON("data/cherries.geojson", function (err, data) {
     if (err) {
+      loadErrors.push("cherries");
       setCount("count-cherries", "0");
       checkDone();
       return;
     }
     cherriesLayer = buildLayer(
       data,
-      { radius: 6, fillColor: "#c41e3a", color: "#7a1020", weight: 1, opacity: 0.9, fillOpacity: 0.85 },
+      { radius: 6, fillColor: "#b84f67", color: "#7c2942", weight: 1, opacity: 0.92, fillOpacity: 0.86 },
       cherriesLayerRef
     );
     cherriesLabels = buildLabelsLayer(data, "label-cherry");
@@ -927,13 +1130,14 @@
 
   loadGeoJSON("data/other_trees.geojson", function (err, data) {
     if (err) {
+      loadErrors.push("other trees");
       setCount("count-other", "0");
       checkDone();
       return;
     }
     otherLayer = buildLayer(
       data,
-      { radius: 4, fillColor: "#2d6a4f", color: "#1b4332", weight: 1, opacity: 0.75, fillOpacity: 0.65 },
+      { radius: 4, fillColor: "#2f6b4f", color: "#173f2e", weight: 1, opacity: 0.78, fillOpacity: 0.66 },
       otherLayerRef
     );
     otherLabels = buildLabelsLayer(data, "label-other");
@@ -946,4 +1150,5 @@
   wireLabelsToggle();
   initSearch();
   wireLocationControls();
+  wireRefreshCacheControl();
 })();

@@ -3,21 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Keele Arboretum — tree map</title>
+  <title>Keele Arboretum tree map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="css/map.css" />
+  <script>
+    window.APP_CACHE_BUSTER = (function () {
+      var match = window.location.search.match(/[?&]_refresh=([^&]+)/);
+      return match ? decodeURIComponent(match[1].replace(/\+/g, " ")) : "";
+    }());
+    document.write('<link rel="stylesheet" href="css/map.css' + (window.APP_CACHE_BUSTER ? '?_refresh=' + encodeURIComponent(window.APP_CACHE_BUSTER) : '') + '" />');
+  </script>
 </head>
 <body>
+  <div id="refresh-progress" class="refresh-progress" aria-live="polite" aria-hidden="true">
+    <div class="refresh-progress-bar"></div>
+    <div class="refresh-progress-message">Refreshing map data...</div>
+  </div>
   <header class="app-header">
-    <h1>Keele Arboretum — tree map</h1>
-    <p class="sub">Flowering cherries and other campus trees (data from the arboretum spreadsheet).</p>
+    <div class="app-header-inner">
+      <a class="app-logo" href="https://www.keele.ac.uk/" aria-label="Keele University homepage">
+        <img src="assets/keele-logo-inverse.png" alt="Keele University" />
+      </a>
+      <div class="app-title-group">
+        <h1>Keele Arboretum tree map</h1>
+        <p class="sub">Flowering cherries and other campus trees.</p>
+      </div>
+    </div>
   </header>
   <aside class="layers-panel" id="layers-panel">
+    <div id="app-notice" class="app-notice" aria-live="polite"></div>
     <div class="panel-section">
       <h2>Search</h2>
       <div class="search-box">
-        <input type="text" id="search-input" placeholder="Tag, species, or keyword…" autocomplete="off" />
-        <div id="search-results" class="search-results"></div>
+        <label class="sr-only" for="search-input">Search by tag, square, species, or keyword</label>
+        <input type="text" id="search-input" placeholder="Search tag 4001, square L7, or species" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results" />
+        <div id="search-results" class="search-results" role="listbox" aria-label="Search results"></div>
       </div>
     </div>
     <div class="panel-section">
@@ -42,17 +61,24 @@
       <h2>Your Location</h2>
       <div class="location-controls">
         <button type="button" id="locate-start">Show my location</button>
+        <button type="button" id="locate-center" disabled>Re-center map</button>
         <button type="button" id="locate-stop" disabled>Stop tracking</button>
       </div>
       <p id="location-status" class="location-status" aria-live="polite">Location tracking is off.</p>
     </div>
     <p class="hint">Deep link: add <code>?tag=4001</code> or <code>?square=L7</code> to the URL.</p>
+    <div class="panel-section panel-section-utility">
+      <button type="button" id="refresh-cache" class="utility-button">Refresh map data</button>
+      <p class="utility-note">Reloads the map and bypasses cached files.</p>
+    </div>
   </aside>
   <div id="map" role="application" aria-label="Campus tree map"></div>
   <footer class="app-footer">
     <span>Map data © OpenStreetMap contributors. Tree locations: Keele University Arboretum.</span>
   </footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="js/map.js"></script>
+  <script>
+    document.write('<script src="js/map.js' + (window.APP_CACHE_BUSTER ? '?_refresh=' + encodeURIComponent(window.APP_CACHE_BUSTER) : '') + '"><\/script>');
+  </script>
 </body>
 </html>
