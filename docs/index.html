@@ -24,7 +24,7 @@
         <img src="assets/keele-logo-inverse.png" alt="Keele University" />
       </a>
       <div class="app-title-group">
-        <h1>Keele Arboretum tree map</h1>
+        <h1>Keele Arboretum <span class="title-qualifier">tree map</span></h1>
         <p class="sub">Flowering cherries and other campus trees.</p>
       </div>
     </div>
@@ -43,18 +43,20 @@
       <h2>Layers</h2>
       <label class="layer-row">
         <input type="checkbox" id="layer-cherries" checked />
-        Cherries (<span id="count-cherries">—</span>)
+        <span class="layer-name">Cherries</span>
+        <span class="count-chip" id="count-cherries">—</span>
       </label>
       <label class="layer-row">
         <input type="checkbox" id="layer-other" />
-        Other trees (<span id="count-other">—</span>)
+        <span class="layer-name">Other trees</span>
+        <span class="count-chip" id="count-other">—</span>
       </label>
     </div>
     <div class="panel-section">
       <h2>Display</h2>
       <label class="layer-row">
         <input type="checkbox" id="toggle-labels" />
-        Show tag numbers
+        <span class="layer-name">Show tag numbers</span>
       </label>
     </div>
     <div class="panel-section">
@@ -72,7 +74,15 @@
       <p class="utility-note">Reloads the map and bypasses cached files.</p>
     </div>
   </aside>
-  <div id="map" role="application" aria-label="Campus tree map"></div>
+  <div class="map-shell">
+    <div id="map" role="application" aria-label="Campus tree map"></div>
+    <button type="button" id="map-expand" class="map-view-button map-expand-button" aria-label="Expand map" title="Expand map" aria-controls="map" aria-expanded="false">
+      <span aria-hidden="true">⛶</span>
+    </button>
+    <button type="button" id="map-collapse" class="map-view-button map-collapse-button" aria-label="Reduce map" title="Reduce map">
+      <span aria-hidden="true">↙</span>
+    </button>
+  </div>
   <footer class="app-footer">
     <span>Map data © OpenStreetMap contributors. Tree locations: Keele University Arboretum.</span>
   </footer>

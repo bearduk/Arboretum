@@ -100,7 +100,7 @@ body {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 168px;
+  width: 158px;
   max-width: 40vw;
   padding: 0;
   border-radius: var(--radius-sm);
@@ -127,6 +127,10 @@ body {
   font-size: 1.5rem;
   font-weight: normal;
   line-height: 1.2;
+}
+
+.title-qualifier {
+  font-style: italic;
 }
 
 .app-header .sub {
@@ -163,6 +167,25 @@ body {
   font-size: 0.95rem;
 }
 
+.layer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.count-chip {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .layer-row:hover {
   background: rgba(255, 255, 255, 0.45);
 }
@@ -186,10 +209,86 @@ body {
   border-radius: var(--radius-sm);
 }
 
-#map {
+.map-shell {
+  position: relative;
   flex: 1;
   min-height: 360px;
+}
+
+#map {
+  height: 100%;
+  min-height: 360px;
   width: 100%;
+}
+
+.map-view-button {
+  position: absolute;
+  right: var(--space-3);
+  z-index: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--color-primary);
+  font-family: var(--font-ui);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: var(--shadow-control);
+  cursor: pointer;
+}
+
+.map-view-button:hover {
+  background: #fbf8f5;
+  border-color: #c4b8a8;
+}
+
+.map-view-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow-control);
+}
+
+.map-expand-button {
+  top: var(--space-3);
+}
+
+.map-collapse-button {
+  top: var(--space-3);
+  display: none;
+}
+
+body.map-expanded {
+  overflow: hidden;
+}
+
+body.map-expanded .app-header,
+body.map-expanded .layers-panel,
+body.map-expanded .app-footer,
+body.map-expanded .map-expand-button {
+  display: none;
+}
+
+body.map-expanded .map-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+body.map-expanded #map {
+  height: 100vh;
+  min-height: 100vh;
+}
+
+body.map-expanded .map-collapse-button {
+  display: block;
 }
 
 .app-footer {
@@ -652,9 +751,14 @@ body {
     border-bottom: 0;
   }
 
-  #map {
+  .map-shell {
     grid-column: 2;
     grid-row: 2;
+    min-height: 0;
+    height: 100%;
+  }
+
+  #map {
     min-height: 0;
     height: 100%;
   }
@@ -675,19 +779,21 @@ body {
 
   .app-header-inner {
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 
   .app-logo {
-    width: 124px;
+    width: 108px;
+    max-width: 34vw;
   }
 
   .app-header h1 {
-    font-size: 1.28rem;
+    font-size: 1.16rem;
   }
 
   .app-header .sub {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
+    line-height: 1.25;
   }
 
   .layers-panel {
@@ -700,7 +806,22 @@ body {
     margin-bottom: var(--space-3);
   }
 
+  #search-input {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .layer-row {
+    min-height: 38px;
+  }
+
   #map {
     min-height: 50vh;
+  }
+
+  .app-footer {
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.68rem;
+    line-height: 1.25;
   }
 }

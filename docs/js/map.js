@@ -172,6 +172,8 @@
   var MAX_WORSE_ACCURACY_JUMP_METERS = 60;
   var loadErrors = [];
   var noticeDismissTimer = null;
+  var dataLoadStartedAt = 0;
+  var MIN_LOADING_NOTICE_MS = 700;
 
   function setNotice(message, kind) {
     var el = document.getElementById("app-notice");
@@ -422,7 +424,7 @@
       if (clearVisual) {
         setLocationStatus("Location tracking is off.", "muted");
       } else {
-        setLocationStatus("Location tracking stopped.", "muted");
+        setLocationStatus("Tracking paused. The map will stay put until you start again.", "muted");
       }
     }
   }
@@ -445,12 +447,12 @@
     function handlePosition(pos) {
       var timestampMs = typeof pos.timestamp === "number" ? pos.timestamp : Date.now();
       var ageMs = Date.now() - timestampMs;
-      var latlng = [pos.coords.latitude, pos.coords.longitude];
-      var accuracy = typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 0 ? pos.coords.accuracy : 0;
-      if (ageMs > MAX_POSITION_AGE_MS && lastAcceptedPosition) {
-        setLocationStatus("Waiting for a fresher location update...", "info");
-        return;
-      }
+        var latlng = [pos.coords.latitude, pos.coords.longitude];
+        var accuracy = typeof pos.coords.accuracy === "number" && pos.coords.accuracy > 0 ? pos.coords.accuracy : 0;
+        if (ageMs > MAX_POSITION_AGE_MS && lastAcceptedPosition) {
+          setLocationStatus("Tracking your location. Latest update may be slightly delayed.", "info");
+          return;
+        }
       if (lastAcceptedPosition) {
         var previousLatLng = L.latLng(lastAcceptedPosition.latlng[0], lastAcceptedPosition.latlng[1]);
         var currentLatLng = L.latLng(latlng[0], latlng[1]);
@@ -461,12 +463,12 @@
           return;
         }
       }
-      updateUserLocation(latlng, accuracy);
       lastAcceptedPosition = {
         latlng: latlng,
         accuracy: accuracy,
         timestamp: timestampMs
       };
+      updateUserLocation(latlng, accuracy);
       if (ageMs > MAX_POSITION_AGE_MS) {
         setLocationStatus("Showing the browser's last known location; waiting for a fresher update.", "info");
       } else {
@@ -552,8 +554,50 @@
       params.push("_refresh=" + encodeURIComponent(String(Date.now())));
       setTimeout(function () {
         window.location.replace(window.location.pathname + "?" + params.join("&") + window.location.hash);
-      }, 180);
+      }, 700);
     };
+  }
+
+  function wireMapViewControls() {
+    var expandBtn = document.getElementById("map-expand");
+    var collapseBtn = document.getElementById("map-collapse");
+    if (!expandBtn || !collapseBtn) {
+      return;
+    }
+
+    function refreshMapSize() {
+      setTimeout(function () {
+        map.invalidateSize();
+      }, 80);
+    }
+
+    function setExpanded(isExpanded) {
+      var className = document.body.className || "";
+      if (isExpanded) {
+        if (className.indexOf("map-expanded") === -1) {
+          document.body.className = (className + " map-expanded").replace(/^\s+/, "");
+        }
+        expandBtn.setAttribute("aria-expanded", "true");
+        collapseBtn.focus();
+      } else {
+        document.body.className = className.replace(/\bmap-expanded\b/g, "").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+        expandBtn.setAttribute("aria-expanded", "false");
+        expandBtn.focus();
+      }
+      refreshMapSize();
+    }
+
+    expandBtn.onclick = function () {
+      setExpanded(true);
+    };
+    collapseBtn.onclick = function () {
+      setExpanded(false);
+    };
+    document.addEventListener("keydown", function (e) {
+      if (e.keyCode === 27 && (document.body.className || "").indexOf("map-expanded") !== -1) {
+        setExpanded(false);
+      }
+    });
   }
 
   function isSourceVisible(source) {
@@ -1065,7 +1109,11 @@
     if (loadErrors.length) {
       setNotice("Some tree data could not be loaded. The map may be incomplete.", "error");
     } else if (!pendingTag && !pendingSquare) {
-      setNotice("");
+      var elapsed = Date.now() - dataLoadStartedAt;
+      var remaining = Math.max(0, MIN_LOADING_NOTICE_MS - elapsed);
+      setTimeout(function () {
+        setNotice("");
+      }, remaining);
     }
   }
 
@@ -1106,6 +1154,7 @@
     }
   }
 
+  dataLoadStartedAt = Date.now();
   setNotice("Loading tree data...", "info");
 
   loadGeoJSON("data/cherries.geojson", function (err, data) {
@@ -1151,4 +1200,5 @@
   initSearch();
   wireLocationControls();
   wireRefreshCacheControl();
+  wireMapViewControls();
 })();
