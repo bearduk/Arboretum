@@ -120,3 +120,5 @@ To go live you usually either:
 ## Further reading
 
 - [`CLAUDE.md`](CLAUDE.md) — Project background, sheet/column inventory, coordinate notes, and GitHub Pages (`/docs`) summary.
+
+_Last docs touch: GitHub Pages rebuild trigger._
