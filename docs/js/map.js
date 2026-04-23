@@ -542,18 +542,17 @@
         progress.className = "refresh-progress is-visible";
         progress.setAttribute("aria-hidden", "false");
       }
-      var search = window.location.search || "";
-      var params = [];
-      var pairs = search.length > 1 ? search.substring(1).split("&") : [];
-      for (var i = 0; i < pairs.length; i++) {
-        if (!pairs[i] || pairs[i].indexOf("_refresh=") === 0) {
-          continue;
-        }
-        params.push(pairs[i]);
+      var refreshUrl = window.location.href;
+      try {
+        var url = new URL(window.location.href);
+        url.searchParams.set("_refresh", String(Date.now()));
+        refreshUrl = url.toString();
+      } catch (e) {
+        var separator = window.location.search ? "&" : "?";
+        refreshUrl = window.location.href + separator + "_refresh=" + encodeURIComponent(String(Date.now()));
       }
-      params.push("_refresh=" + encodeURIComponent(String(Date.now())));
       setTimeout(function () {
-        window.location.replace(window.location.pathname + "?" + params.join("&") + window.location.hash);
+        window.location.replace(refreshUrl);
       }, 700);
     };
   }
